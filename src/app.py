@@ -1,260 +1,205 @@
 """
-EduSaaS Python Calculation Engine
-Simple Flask API for grade calculations and report generation
+PURE API GATEWAY ROUTER
+Only handles: Security, Routing, Request/Response
+Business logic will be in handler modules
 """
-
 import os
-import sys
-import json
-from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+import logging
 
-# Load environment variables
+# Load environment
 load_dotenv()
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Import middleware
+from middleware.security import SecurityMiddleware
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)
 
-# Configuration
-app.config['JSON_SORT_KEYS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
+# CORS Configuration - flexible
+ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', '').split(',')
+if ALLOWED_ORIGINS and ALLOWED_ORIGINS[0]:
+    CORS(app, origins=ALLOWED_ORIGINS)
+    logger.info(f"CORS allowed for: {ALLOWED_ORIGINS}")
+else:
+    CORS(app)  # Allow all for now
+    logger.warning("ALLOWED_ORIGINS not set - allowing all origins")
 
-# =============================================
-# HEALTH CHECK ENDPOINT
-# =============================================
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """Check if Python service is running"""
+# Initialize security middleware
+security = SecurityMiddleware(app)
+
+# ==================== GLOBAL MIDDLEWARE ====================
+@app.before_request
+def global_middleware():
+    """Global middleware for all requests"""
+    # Apply security checks
+    security_result = security.check_request(request)
+    if security_result.get('blocked'):
+        return jsonify({
+            "success": False,
+            "error": security_result['error'],
+            "message": security_result['message']
+        }), security_result.get('code', 403)
+    
+    # Log request
+    logger.info(f"📨 {request.method} {request.path} from {request.remote_addr}")
+
+# ==================== ROUTES ====================
+@app.route('/api/documents/request', methods=['POST'])
+def document_request():
+    """Handle document requests"""
+    try:
+        data = request.get_json() or {}
+        
+        # TODO: Call your document processing function here
+        # result = document_handler.process_request(data)
+        
+        # For now, just pass through
+        return jsonify({
+            "success": True,
+            "message": "Document request received",
+            "data": data,
+            "handler": "document_request",
+            "note": "Processing function will be implemented in handlers/document_handler.py"
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in document_request: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": "processing_error",
+            "message": str(e)
+        }), 500
+
+@app.route('/api/calculate', methods=['POST'])
+def calculate():
+    """Handle calculation requests"""
+    try:
+        data = request.get_json() or {}
+        
+        # TODO: Call your calculation function here
+        # result = calculation_handler.process(data)
+        
+        return jsonify({
+            "success": True,
+            "message": "Calculation request received",
+            "data": data,
+            "handler": "calculate",
+            "note": "Calculation function will be implemented in handlers/calculation_handler.py"
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in calculate: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": "calculation_error",
+            "message": str(e)
+        }), 500
+
+@app.route('/api/process', methods=['POST'])
+def process():
+    """Generic processing endpoint"""
+    try:
+        data = request.get_json() or {}
+        action = data.get('action', 'unknown')
+        
+        # TODO: Route to appropriate handler based on action
+        # if action == 'generate_pdf':
+        #     result = pdf_handler.generate(data)
+        # elif action == 'validate_data':
+        #     result = validation_handler.validate(data)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Process request for action: {action}",
+            "data": data,
+            "handler": "process",
+            "action": action
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in process: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": "process_error",
+            "message": str(e)
+        }), 500
+
+# ==================== UTILITY ENDPOINTS ====================
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check endpoint"""
     return jsonify({
-        'status': 'healthy',
-        'service': 'EduSaaS Python Calculation Engine',
-        'python_version': sys.version.split()[0],
-        'timestamp': datetime.utcnow().isoformat() + 'Z',
-        'endpoints': {
-            'health': 'GET /api/health',
-            'calculate_grades': 'POST /api/calculate/grades',
-            'generate_report': 'POST /api/generate/report',
-            'test_calculation': 'GET /api/test/calculation'
+        "status": "healthy",
+        "service": "API Gateway Router",
+        "timestamp": os.times().elapsed,
+        "allowed_origins": ALLOWED_ORIGINS if ALLOWED_ORIGINS[0] else "ALL"
+    }), 200
+
+@app.route('/api/info', methods=['GET'])
+def api_info():
+    """API information endpoint"""
+    return jsonify({
+        "name": "Document & Calculation API Gateway",
+        "version": "1.0.0",
+        "endpoints": [
+            {"path": "/api/documents/request", "method": "POST", "desc": "Submit document requests"},
+            {"path": "/api/calculate", "method": "POST", "desc": "Perform calculations"},
+            {"path": "/api/process", "method": "POST", "desc": "Generic processing"},
+            {"path": "/health", "method": "GET", "desc": "Health check"},
+            {"path": "/api/info", "method": "GET", "desc": "API information"}
+        ],
+        "security": {
+            "api_key_required": bool(os.getenv('API_KEY')),
+            "allowed_origins": ALLOWED_ORIGINS if ALLOWED_ORIGINS[0] else "Open"
         }
-    })
+    }), 200
 
-# =============================================
-# TEST CALCULATION ENDPOINT
-# =============================================
-@app.route('/api/test/calculation', methods=['GET'])
-def test_calculation():
-    """Test endpoint to verify calculations work"""
-    test_marks = [85, 90, 78, 92, 88, 75, 95, 80]
-    
-    # Simple calculation
-    average = sum(test_marks) / len(test_marks)
-    
-    # Grade mapping
-    if average >= 80:
-        grade = 'A'
-        remark = 'Excellent'
-    elif average >= 70:
-        grade = 'B+'
-        remark = 'Very Good'
-    elif average >= 60:
-        grade = 'B'
-        remark = 'Good'
-    elif average >= 50:
-        grade = 'C'
-        remark = 'Satisfactory'
-    else:
-        grade = 'D'
-        remark = 'Needs Improvement'
-    
+# ==================== ERROR HANDLERS ====================
+@app.errorhandler(404)
+def not_found(e):
     return jsonify({
-        'test_data': test_marks,
-        'results': {
-            'average': round(average, 2),
-            'grade': grade,
-            'remark': remark,
-            'total_students': len(test_marks),
-            'highest_score': max(test_marks),
-            'lowest_score': min(test_marks)
-        },
-        'calculated_by': 'Python Calculation Engine',
-        'note': 'This is a test calculation'
-    })
+        "success": False,
+        "error": "not_found",
+        "message": "Endpoint does not exist"
+    }), 404
 
-# =============================================
-# GRADE CALCULATION ENDPOINT
-# =============================================
-@app.route('/api/calculate/grades', methods=['POST'])
-def calculate_grades():
-    """Calculate grades from marks"""
-    try:
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({
-                'status': 'error',
-                'message': 'No data provided'
-            }), 400
-        
-        marks = data.get('marks', [])
-        grading_system = data.get('grading_system', 'tanzania')
-        
-        if not marks:
-            return jsonify({
-                'status': 'error',
-                'message': 'Marks array is required'
-            }), 400
-        
-        # Convert to list if not already
-        if not isinstance(marks, list):
-            marks = [marks]
-        
-        # Basic calculations
-        total_marks = sum(marks)
-        average = total_marks / len(marks)
-        
-        # Determine grade based on system
-        if grading_system == 'tanzania':
-            grade, remark = get_tanzania_grade(average)
-        elif grading_system == 'international':
-            grade, remark = get_international_grade(average)
-        else:
-            grade, remark = get_tanzania_grade(average)
-        
-        # Statistics
-        passed = sum(1 for mark in marks if mark >= 40)
-        failed = len(marks) - passed
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'summary': {
-                    'total_students': len(marks),
-                    'average_score': round(average, 2),
-                    'total_marks': total_marks,
-                    'passed': passed,
-                    'failed': failed,
-                    'pass_rate': round((passed / len(marks)) * 100, 2)
-                },
-                'grade_info': {
-                    'grade': grade,
-                    'remark': remark,
-                    'grading_system': grading_system
-                },
-                'statistics': {
-                    'highest': max(marks),
-                    'lowest': min(marks),
-                    'range': max(marks) - min(marks),
-                    'median': calculate_median(marks)
-                }
-            },
-            'calculated_by': 'Python Engine',
-            'timestamp': datetime.utcnow().isoformat() + 'Z'
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+@app.errorhandler(405)
+def method_not_allowed(e):
+    return jsonify({
+        "success": False,
+        "error": "method_not_allowed",
+        "message": f"Method {request.method} not allowed for this endpoint"
+    }), 405
 
-# =============================================
-# REPORT GENERATION ENDPOINT
-# =============================================
-@app.route('/api/generate/report', methods=['POST'])
-def generate_report():
-    """Generate a simple report (PDF simulation)"""
-    try:
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({
-                'status': 'error',
-                'message': 'No data provided'
-            }), 400
-        
-        report_type = data.get('type', 'student_report')
-        student_name = data.get('student_name', 'Student')
-        marks = data.get('marks', {})
-        
-        # Simulate PDF generation
-        report_id = f"REPORT_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'report_id': report_id,
-                'report_type': report_type,
-                'student_name': student_name,
-                'download_url': f'/reports/{report_id}.pdf',
-                'preview_url': f'/reports/{report_id}/preview',
-                'generated_at': datetime.utcnow().isoformat() + 'Z',
-                'pages': 2,
-                'file_size': '450KB'
-            },
-            'note': 'PDF generation simulated. Actual PDF would be generated with ReportLab.',
-            'next_steps': [
-                'Download report from download_url',
-                'View preview from preview_url',
-                'Store report_id for future reference'
-            ]
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+@app.errorhandler(500)
+def internal_error(e):
+    logger.error(f"Internal server error: {e}")
+    return jsonify({
+        "success": False,
+        "error": "internal_error",
+        "message": "Internal server error occurred"
+    }), 500
 
-# =============================================
-# HELPER FUNCTIONS
-# =============================================
-def get_tanzania_grade(average):
-    """Tanzania grading system"""
-    if average >= 80:
-        return 'A', 'Excellent'
-    elif average >= 70:
-        return 'B+', 'Very Good'
-    elif average >= 60:
-        return 'B', 'Good'
-    elif average >= 50:
-        return 'C', 'Satisfactory'
-    elif average >= 40:
-        return 'D', 'Pass'
-    else:
-        return 'E', 'Fail'
-
-def get_international_grade(average):
-    """International grading system"""
-    if average >= 90:
-        return 'A+', 'Outstanding'
-    elif average >= 80:
-        return 'A', 'Excellent'
-    elif average >= 70:
-        return 'B', 'Good'
-    elif average >= 60:
-        return 'C', 'Satisfactory'
-    elif average >= 50:
-        return 'D', 'Pass'
-    else:
-        return 'F', 'Fail'
-
-def calculate_median(numbers):
-    """Calculate median of a list"""
-    sorted_numbers = sorted(numbers)
-    n = len(sorted_numbers)
-    mid = n // 2
-    
-    if n % 2 == 0:
-        return (sorted_numbers[mid - 1] + sorted_numbers[mid]) / 2
-    else:
-        return sorted_numbers[mid]
-
-# =============================================
-# MAIN EXECUTION
-# =============================================
+# ==================== MAIN ====================
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    port = int(os.getenv('PORT', 5000))
+    
+    logger.info("=" * 50)
+    logger.info("🚀 API Gateway Router Starting...")
+    logger.info(f"📡 Port: {port}")
+    logger.info(f"🔒 API Key Required: {'Yes' if os.getenv('API_KEY') else 'No'}")
+    logger.info(f"🌐 Allowed Origins: {ALLOWED_ORIGINS if ALLOWED_ORIGINS[0] else 'ALL'}")
+    logger.info("=" * 50)
+    
+    app.run(
+        host='0.0.0.0',
+        port=port,
+        debug=os.getenv('DEBUG', 'False').lower() == 'true'
+    )

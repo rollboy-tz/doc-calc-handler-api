@@ -1,14 +1,8 @@
 # Core
 Flask>=3.0.0
 Flask-CORS>=4.0.0
+gunicorn>=21.0.0
 
-# For calculations
-numpy>=1.26.0
-pandas>=2.2.0
-
-# For PDF generation
-reportlab>=4.0.0
-PyPDF2>=3.0.0
 
 # Environment
 python-dotenv>=1.0.0
@@ -16,3 +10,5 @@ python-dotenv>=1.0.0
 # Build dependencies
 setuptools>=70.0.0
 wheel>=0.43.0
+
+# Work Libraries
