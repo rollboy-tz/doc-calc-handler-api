@@ -1,0 +1,14 @@
+# Core
+Flask==2.3.0
+Flask-CORS==4.0.0
+
+# For calculations (optional for now)
+numpy==1.24.0
+pandas==2.0.0
+
+# For PDF generation (optional for now)
+reportlab==4.0.0
+PyPDF2==3.0.0
+
+# Environment
+python-dotenv==1.0.0
