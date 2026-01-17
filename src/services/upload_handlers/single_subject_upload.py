@@ -43,7 +43,7 @@ class SingleSubjectUploadHandler:
         """
         try:
             # 1. Read Excel file
-            df = pd.read_excel(excel_file_path)
+            df = pd.read_excel(excel_file_path, header=1)
             
             # 2. Validate file structure
             validation = self._validate_structure(df)
