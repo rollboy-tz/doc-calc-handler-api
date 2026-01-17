@@ -61,6 +61,7 @@ def global_middleware():
 # Import our services
 from services.documents.marksheet_template import MarkSheetTemplate
 from services.calculations.grade_calculator import GradeCalculator
+from services.documents.subject_marksheet import SubjectMarkSheet
 
 
 # ==================== ROUTES ====================
@@ -116,6 +117,65 @@ def generate_marksheet_template():
             "error": str(e),
             "success": False
         }), 500
+
+
+@app.route('/api/template/subject', methods=['POST'])
+def generate_subject_marksheet():
+    """Generate mark sheet for ONE subject only"""
+    try:
+        data = request.json
+        
+        # Extract data
+        students = data.get('students', [])
+        subject_info = data.get('subject_info', {})
+        
+        if not students:
+            return jsonify({
+                "error": "No students provided",
+                "message": "Please provide student list"
+            }), 400
+        
+        if not subject_info.get('name'):
+            return jsonify({
+                "error": "Subject name required",
+                "message": "Please provide subject name"
+            }), 400
+        
+        # Create subject mark sheet
+        template = SubjectMarkSheet(
+            student_list=students,
+            subject_info=subject_info
+        )
+        
+        # Generate template
+        template.generate()
+        
+        # Get Excel file as bytes
+        excel_bytes = template.to_excel_bytes()
+        
+        # Generate filename
+        filename = template._generate_filename()
+        
+        # Save to temp file for sending
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        temp_file.write(excel_bytes.getvalue())
+        temp_file.close()
+        
+        # Return file
+        return send_file(
+            temp_file.name,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "success": False
+        }), 500
+
+
 
 @app.route('/api/process/marks', methods=['POST'])
 def process_marks():
@@ -242,6 +302,139 @@ def process():
             "message": str(e)
         }), 500
 
+
+@app.route('/api/process/subject/marks', methods=['POST'])
+def process_subject_marks():
+    """
+    Process uploaded marks for ONE subject
+    
+    Can be used by subject teachers to submit marks
+    """
+    try:
+        if 'file' not in request.files:
+            return jsonify({
+                "error": "No file uploaded",
+                "message": "Please upload Excel file"
+            }), 400
+        
+        file = request.files['file']
+        
+        # Read Excel file
+        df = pd.read_excel(file)
+        
+        # Get subject info from form
+        subject_name = request.form.get('subject_name', 'Mathematics')
+        subject_code = request.form.get('subject_code', 'MATH')
+        max_score = int(request.form.get('max_score', 100))
+        teacher_id = request.form.get('teacher_id', '')
+        
+        # Validate file structure
+        required_columns = ['admission_no', 'student_id', 'full_name']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        
+        if missing_columns:
+            return jsonify({
+                "error": "Invalid file structure",
+                "message": f"Missing columns: {', '.join(missing_columns)}"
+            }), 400
+        
+        # Extract marks column (should be the subject column)
+        subject_columns = [col for col in df.columns if col not in required_columns + ['class', 'stream', 'Remarks']]
+        
+        if not subject_columns:
+            return jsonify({
+                "error": "No subject marks found",
+                "message": "File should contain subject marks column"
+            }), 400
+        
+        subject_column = subject_columns[0]  # First non-student-info column
+        
+        # Initialize grade calculator
+        from services.calculations.grade_calculator import GradeCalculator
+        calculator = GradeCalculator()
+        
+        # Process marks for this subject
+        results = []
+        subject_marks = []
+        
+        for _, row in df.iterrows():
+            mark = row.get(subject_column)
+            
+            if pd.isna(mark):
+                grade = '-'
+                points = 0
+            else:
+                try:
+                    mark_value = float(mark)
+                    if 0 <= mark_value <= max_score:
+                        grade, points = calculator.calculate_grade(mark_value)
+                    else:
+                        grade = 'INVALID'
+                        points = 0
+                except:
+                    grade = 'INVALID'
+                    points = 0
+            
+            results.append({
+                'admission_no': row.get('admission_no'),
+                'student_id': row.get('student_id'),
+                'full_name': row.get('full_name'),
+                'class': row.get('class', ''),
+                'stream': row.get('stream', ''),
+                'subject': subject_name,
+                'mark': mark if not pd.isna(mark) else None,
+                'grade': grade,
+                'points': points,
+                'remarks': row.get('Remarks', '')
+            })
+            
+            if pd.notna(mark):
+                try:
+                    subject_marks.append(float(mark))
+                except:
+                    pass
+        
+        # Calculate subject statistics
+        if subject_marks:
+            subject_stats = {
+                'subject_average': sum(subject_marks) / len(subject_marks),
+                'subject_highest': max(subject_marks),
+                'subject_lowest': min(subject_marks),
+                'students_with_marks': len(subject_marks),
+                'students_missing': len(df) - len(subject_marks)
+            }
+        else:
+            subject_stats = {
+                'subject_average': 0,
+                'subject_highest': 0,
+                'subject_lowest': 0,
+                'students_with_marks': 0,
+                'students_missing': len(df)
+            }
+        
+        return jsonify({
+            "success": True,
+            "subject": subject_name,
+            "teacher_id": teacher_id,
+            "students_processed": len(results),
+            "subject_statistics": subject_stats,
+            "marks_data": results,
+            "summary": {
+                "file_received": file.filename,
+                "subject_column": subject_column,
+                "max_score": max_score,
+                "processed_at": datetime.now().isoformat()
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "success": False
+        }), 500
+
+
+
 # ==================== UTILITY ENDPOINTS ====================
 @app.route('/health', methods=['GET'])
 def health():
@@ -261,6 +454,7 @@ def api_info():
         "version": "1.0.0",
         "endpoints": [
             {"path": "/api/template/marksheet", "method": "POST", "desc": "Get marksheet template file"},
+            {"path": "/api/template/subject", "method": "POST", "desc": "Generate mark sheet for ONE subject only"},
             {"path": "/api/template/info", "method": "POST", "desc": "Get information about template without generating file"},
             {"path": "/api/process/marks", "method": "POST", "desc": "Process uploaded marks and calculate grades"},
             {"path": "/api/process", "method": "POST", "desc": "Generic processing"},
