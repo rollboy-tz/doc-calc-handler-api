@@ -176,8 +176,72 @@ def generate_subject_marksheet():
             "success": False
         }), 500
 
-
-
+# ======== EXCEL UPLOAD TEST ROUTE ================
+@app.route('/api/debug/xlxs/upload-test', methods=['POST'])
+def debug_upload_test():
+    """Debug endpoint to see exactly what's in the file"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file"}), 400
+        
+        file = request.files['file']
+        
+        # Save temp file
+        import tempfile
+        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        file.save(temp_path.name)
+        
+        # Read with pandas
+        import pandas as pd
+        df = pd.read_excel(temp_path.name)
+        
+        # Get detailed info
+        info = {
+            "filename": file.filename,
+            "file_size_bytes": len(file.read()),
+            "columns_found": df.columns.tolist(),
+            "columns_count": len(df.columns),
+            "rows_count": len(df),
+            "data_types": df.dtypes.astype(str).to_dict(),
+            "first_3_rows": df.head(3).to_dict('records'),
+            "column_details": []
+        }
+        
+        # Check each column
+        for col in df.columns:
+            col_info = {
+                "name": col,
+                "type": str(df[col].dtype),
+                "non_null_count": df[col].notna().sum(),
+                "null_count": df[col].isna().sum(),
+                "sample_values": df[col].dropna().head(3).tolist()
+            }
+            info["column_details"].append(col_info)
+        
+        # Clean up
+        import os
+        os.unlink(temp_path.name)
+        
+        return jsonify({
+            "success": True,
+            "debug_info": info,
+            "expected_columns": [
+                "admission_no",
+                "student_id", 
+                "full_name",
+                "class",
+                "stream",
+                "MATHEMATICS",  # or your subject name
+                "Remarks"
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc() if 'traceback' in locals() else "N/A"
+        }), 500
 
 # ==================== UPLOAD ENDPOINTS ====================
 
