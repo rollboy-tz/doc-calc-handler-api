@@ -41,10 +41,10 @@ class MultiSubjectUploadHandler:
             df = pd.read_excel(excel_file_path, header=None)
 
             if len(df) > 0:
-            # Row 0 contains headers
-            df.columns = df.iloc[0]
-            # Remove the header row from data
-            df = df.iloc[1:].reset_index(drop=True)
+                # Row 0 contains headers
+                df.columns = df.iloc[0]
+                # Remove the header row from data
+                df = df.iloc[1:].reset_index(drop=True)
         
 
             # 2. Detect subjects from file
