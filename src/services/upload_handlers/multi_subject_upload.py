@@ -38,7 +38,7 @@ class MultiSubjectUploadHandler:
         """
         try:
             # 1. Read Excel file with header row 1 (skip title)
-            df = pd.read_excel(excel_file_path, header=0)
+            df = pd.read_excel(excel_file_path, header=None)
             
             # 2. Detect subjects from file
             detected_subjects = self._detect_subjects(df)
