@@ -188,38 +188,70 @@ def debug_upload_test():
         
         # Save temp file
         import tempfile
+        import os
         temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
         file.save(temp_path.name)
         
         # Read with pandas
         import pandas as pd
-        df = pd.read_excel(temp_path.name)
+        import numpy as np
         
-        # Get detailed info
+        # Read Excel
+        df = pd.read_excel(temp_path.name, engine='openpyxl')
+        
+        # CONVERT numpy types to Python native types
+        def convert_to_serializable(obj):
+            """Convert numpy/pandas types to JSON-serializable types"""
+            if pd.isna(obj):
+                return None
+            elif isinstance(obj, (np.integer, np.int64, np.int32)):
+                return int(obj)
+            elif isinstance(obj, (np.floating, np.float64, np.float32)):
+                return float(obj)
+            elif isinstance(obj, np.bool_):
+                return bool(obj)
+            elif isinstance(obj, (pd.Timestamp, pd.DatetimeIndex)):
+                return obj.isoformat()
+            else:
+                return str(obj)
+        
+        # Get serializable data
         info = {
             "filename": file.filename,
-            "file_size_bytes": len(file.read()),
+            "file_size_bytes": os.path.getsize(temp_path.name),
             "columns_found": df.columns.tolist(),
             "columns_count": len(df.columns),
             "rows_count": len(df),
-            "data_types": df.dtypes.astype(str).to_dict(),
-            "first_3_rows": df.head(3).to_dict('records'),
+            "data_types": {col: str(df[col].dtype) for col in df.columns},
+            "first_3_rows": [],
             "column_details": []
         }
         
-        # Check each column
+        # Convert first rows
+        for i in range(min(3, len(df))):
+            row_data = {}
+            for col in df.columns:
+                value = df.iloc[i][col]
+                row_data[col] = convert_to_serializable(value)
+            info["first_3_rows"].append(row_data)
+        
+        # Column details
         for col in df.columns:
+            # Get sample values (convert to serializable)
+            sample_vals = []
+            for val in df[col].dropna().head(3):
+                sample_vals.append(convert_to_serializable(val))
+            
             col_info = {
                 "name": col,
                 "type": str(df[col].dtype),
-                "non_null_count": df[col].notna().sum(),
-                "null_count": df[col].isna().sum(),
-                "sample_values": df[col].dropna().head(3).tolist()
+                "non_null_count": int(df[col].notna().sum()),  # Convert to int
+                "null_count": int(df[col].isna().sum()),      # Convert to int
+                "sample_values": sample_vals
             }
             info["column_details"].append(col_info)
         
         # Clean up
-        import os
         os.unlink(temp_path.name)
         
         return jsonify({
@@ -231,257 +263,17 @@ def debug_upload_test():
                 "full_name",
                 "class",
                 "stream",
-                "MATHEMATICS",  # or your subject name
+                "MATHEMATICS",
                 "Remarks"
             ]
         })
         
     except Exception as e:
+        import traceback
         return jsonify({
             "success": False,
             "error": str(e),
-            "traceback": traceback.format_exc() if 'traceback' in locals() else "N/A"
-        }), 500
-
-# ==================== UPLOAD ENDPOINTS ====================
-
-@app.route('/api/upload/single-subject', methods=['POST'])
-def upload_single_subject():
-    """
-    Upload Excel with ONE subject marks
-    Form data should include:
-    - file: Excel file
-    - subject_name: Name of subject
-    - max_score: Maximum score (default 100)
-    - grading_system: KCSE/KCPE (default KCSE)
-    """
-    try:
-        if 'file' not in request.files:
-            return jsonify({
-                "success": False,
-                "error": "No file uploaded"
-            }), 400
-        
-        file = request.files['file']
-        
-        # Get parameters
-        subject_name = request.form.get('subject_name')
-        if not subject_name:
-            return jsonify({
-                "success": False,
-                "error": "Subject name required"
-            }), 400
-        
-        max_score = int(request.form.get('max_score', 100))
-        grading_system = request.form.get('grading_system', 'KCSE')
-        teacher_id = request.form.get('teacher_id', '')
-        
-        # Save uploaded file temporarily
-        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
-        file.save(temp_path.name)
-        
-        # Process with single subject handler
-        handler = SingleSubjectUploadHandler(
-            subject_name=subject_name,
-            max_score=max_score,
-            grading_system=grading_system
-        )
-        
-        result = handler.process_upload(temp_path.name)
-        
-        # Add metadata
-        if result['success']:
-            result['metadata'] = {
-                'original_filename': file.filename,
-                'uploaded_by': teacher_id,
-                'uploaded_at': datetime.now().isoformat(),
-                'subject': subject_name
-            }
-        
-        # Clean up temp file
-        os.unlink(temp_path.name)
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-@app.route('/api/upload/multi-subject', methods=['POST'])
-def upload_multi_subject():
-    """
-    Upload Excel with MULTIPLE subjects marks
-    Form data should include:
-    - file: Excel file
-    - subjects: Comma-separated subject names (optional)
-    - grading_system: KCSE/KCPE (default KCSE)
-    """
-    try:
-        if 'file' not in request.files:
-            return jsonify({
-                "success": False,
-                "error": "No file uploaded"
-            }), 400
-        
-        file = request.files['file']
-        
-        # Get parameters
-        subjects_input = request.form.get('subjects', '')
-        if subjects_input:
-            subjects = [s.strip() for s in subjects_input.split(',')]
-        else:
-            subjects = []  # Will auto-detect
-        
-        grading_system = request.form.get('grading_system', 'KCSE')
-        class_name = request.form.get('class_name', '')
-        term = request.form.get('term', '')
-        year = request.form.get('year', datetime.now().year)
-        
-        # Save uploaded file temporarily
-        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
-        file.save(temp_path.name)
-        
-        # Process with multi-subject handler
-        handler = MultiSubjectUploadHandler(
-            subjects=subjects,
-            grading_system=grading_system
-        )
-        
-        result = handler.process_upload(temp_path.name)
-        
-        # Add metadata
-        if result['success']:
-            result['metadata'] = {
-                'original_filename': file.filename,
-                'class_name': class_name,
-                'term': term,
-                'year': year,
-                'uploaded_at': datetime.now().isoformat()
-            }
-        
-        # Clean up temp file
-        os.unlink(temp_path.name)
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-@app.route('/api/upload/validate-template', methods=['POST'])
-def validate_template():
-    """
-    Validate template without processing
-    Returns validation results only
-    """
-    try:
-        if 'file' not in request.files:
-            return jsonify({
-                "success": False,
-                "error": "No file uploaded"
-            }), 400
-        
-        file = request.files['file']
-        
-        # Determine if single or multi-subject
-        upload_type = request.form.get('upload_type', 'multi')  # 'single' or 'multi'
-        
-        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
-        file.save(temp_path.name)
-        
-        df = pd.read_excel(temp_path.name)
-        
-        if upload_type == 'single':
-            subject_name = request.form.get('subject_name', '')
-            if not subject_name:
-                # Try to detect subject name
-                base_cols = ['admission_no', 'student_id', 'full_name', 'class', 'stream', 'Remarks']
-                subject_cols = [col for col in df.columns if col not in base_cols]
-                subject_name = subject_cols[0] if subject_cols else 'Unknown'
-            
-            handler = SingleSubjectUploadHandler(subject_name=subject_name)
-            template_info = handler.get_expected_template()
-            
-            # Basic validation
-            validation = handler._validate_structure(df)
-            
-            result = {
-                "success": True,
-                "upload_type": "single_subject",
-                "subject": subject_name,
-                "template_info": template_info,
-                "validation": validation,
-                "file_preview": {
-                    "columns": df.columns.tolist(),
-                    "row_count": len(df),
-                    "sample_data": df.head().to_dict('records')
-                }
-            }
-        
-        else:  # multi-subject
-            handler = MultiSubjectUploadHandler(subjects=[])
-            template_info = handler.get_expected_template()
-            
-            # Detect subjects
-            detected_subjects = handler._detect_subjects(df)
-            
-            result = {
-                "success": True,
-                "upload_type": "multi_subject",
-                "detected_subjects": detected_subjects,
-                "template_info": template_info,
-                "file_preview": {
-                    "columns": df.columns.tolist(),
-                    "row_count": len(df),
-                    "sample_data": df.head().to_dict('records')
-                }
-            }
-        
-        os.unlink(temp_path.name)
-        return jsonify(result)
-        
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-
-
-
-
-@app.route('/api/template/info', methods=['POST'])
-def get_template_info():
-    """Get information about template without generating file"""
-    try:
-        data = request.json
-        
-        students = data.get('students', [])
-        class_info = data.get('class_info', {})
-        subjects = data.get('subjects', [])
-        
-        template = MarkSheetTemplate(
-            student_list=students,
-            class_info=class_info,
-            subjects=subjects
-        )
-        
-        template.generate()
-        
-        return jsonify({
-            "success": True,
-            "template_info": template.get_template_info(),
-            "metadata": template.get_metadata()
-        })
-        
-    except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "success": False
+            "traceback": traceback.format_exc()
         }), 500
 
 
