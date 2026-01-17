@@ -360,11 +360,29 @@ def test_read_excel():
         for header_option in [None, 0, 1, 2]:
             try:
                 df = pd.read_excel(temp_path.name, header=header_option)
+                
+                # Convert to JSON serializable
+                def safe_convert(value):
+                    if pd.isna(value):
+                        return None
+                    elif hasattr(value, 'item'):  # numpy types
+                        return value.item()
+                    else:
+                        return str(value)
+                
+                # Get sample data safely
+                sample_data = []
+                for i in range(min(3, len(df))):
+                    row = {}
+                    for col in df.columns:
+                        row[str(col)] = safe_convert(df.iloc[i][col])
+                    sample_data.append(row)
+                
                 results[f'header={header_option}'] = {
-                    'columns': df.columns.tolist(),
-                    'first_row': df.iloc[0].tolist() if len(df) > 0 else [],
-                    'shape': df.shape,
-                    'sample': df.head(3).to_dict('records') if len(df) > 0 else []
+                    'columns': [str(col) for col in df.columns.tolist()],
+                    'first_row': [safe_convert(x) for x in df.iloc[0].tolist()] if len(df) > 0 else [],
+                    'shape': {'rows': int(df.shape[0]), 'cols': int(df.shape[1])},
+                    'sample': sample_data
                 }
             except Exception as e:
                 results[f'header={header_option}'] = {'error': str(e)}
@@ -372,24 +390,28 @@ def test_read_excel():
         # Try to detect what's in the file
         df_no_header = pd.read_excel(temp_path.name, header=None)
         
+        # Convert all values to strings for analysis
+        def to_str(val):
+            return str(val) if not pd.isna(val) else ''
+        
         # Check first few rows
         analysis = {
-            'first_3_rows': df_no_header.head(3).values.tolist(),
+            'first_3_rows': [],
             'likely_headers_row': None,
             'data_starts_at_row': None
         }
         
-        # Try to find where headers are
         for i in range(min(5, len(df_no_header))):
-            row = df_no_header.iloc[i].tolist()
-            # Check if this row looks like headers (strings, no numbers)
-            has_strings = any(isinstance(x, str) for x in row)
-            has_numbers = any(isinstance(x, (int, float)) for x in row if x is not None)
+            row = [to_str(x) for x in df_no_header.iloc[i].tolist()]
+            analysis['first_3_rows'].append(row)
             
-            if has_strings and not has_numbers:
+            # Check if this row looks like headers (all strings, no numbers)
+            row_has_numbers = any(val.replace('.', '').isdigit() for val in row if val)
+            row_has_text = any(val.isalpha() for val in row if val)
+            
+            if row_has_text and not row_has_numbers:
                 analysis['likely_headers_row'] = i
                 analysis['data_starts_at_row'] = i + 1
-                break
         
         # Clean up
         os.unlink(temp_path.name)
@@ -398,12 +420,14 @@ def test_read_excel():
             "success": True,
             "analysis": analysis,
             "read_results": results,
-            "recommendation": f"Use header={analysis['likely_headers_row']}" if analysis['likely_headers_row'] is not None else "File structure unclear"
+            "recommendation": {
+                "header_row": analysis['likely_headers_row'],
+                "data_start_row": analysis['data_starts_at_row']
+            }
         })
         
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-
 
 
 # ==================== SINGLE SUBJECT PROCESSING ====================
