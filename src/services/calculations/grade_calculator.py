@@ -43,7 +43,7 @@ class GradeCalculator:
         'E': (0, 19, 1)
     }
     
-    def __init__(self, grading_system='KCSE'):
+    def __init__(self, grading_rules='CSEE'):
         """
         Initialize calculator
         
