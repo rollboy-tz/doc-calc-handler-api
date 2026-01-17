@@ -4,10 +4,17 @@ Only handles: Security, Routing, Request/Response
 Business logic will be in handler modules
 """
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
+import pandas as pd
+import json
+import tempfile
+import os
 from dotenv import load_dotenv
 import logging
+
+
+
 
 # Load environment
 load_dotenv()
@@ -50,57 +57,160 @@ def global_middleware():
     # Log request
     logger.info(f"📨 {request.method} {request.path} from {request.remote_addr}")
 
+# Import our services
+from services.documents.marksheet_template import MarkSheetTemplate
+from services.calculations.grade_calculator import GradeCalculator
+
+
 # ==================== ROUTES ====================
-@app.route('/api/documents/request', methods=['POST'])
-def document_request():
+@app.route('/api/template/marksheet', methods=['POST'])
+def generate_marksheet_template():
     """Handle document requests"""
     try:
-        data = request.get_json() or {}
+        data = request.json
         
-        # TODO: Call your document processing function here
-        # result = document_handler.process_request(data)
+        # Extract data
+        students = data.get('students', [])
+        class_info = data.get('class_info', {})
+        subjects = data.get('subjects', [])
         
-        # For now, just pass through
-        return jsonify({
-            "success": True,
-            "message": "Document request received",
-            "data": data,
-            "handler": "document_request",
-            "note": "Processing function will be implemented in handlers/document_handler.py"
-        }), 200
+        if not students:
+            return jsonify({
+                "error": "No students provided",
+                "message": "Please provide student list"
+            }), 400
+        
+        # Create mark sheet template
+        template = MarkSheetTemplate(
+            student_list=students,
+            class_info=class_info,
+            subjects=subjects,
+            include_instructions=True
+        )
+        
+        # Generate template
+        template.generate()
+        
+        # Get Excel file as bytes
+        excel_bytes = template.to_excel_bytes()
+        
+        # Generate filename
+        filename = template._generate_filename()
+        
+        # Save to temp file for sending
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        temp_file.write(excel_bytes.getvalue())
+        temp_file.close()
+        
+        # Return file
+        return send_file(
+            temp_file.name,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
         
     except Exception as e:
-        logger.error(f"Error in document_request: {str(e)}")
         return jsonify({
-            "success": False,
-            "error": "processing_error",
-            "message": str(e)
+            "error": str(e),
+            "success": False
         }), 500
 
-@app.route('/api/calculate', methods=['POST'])
-def calculate():
+@app.route('/api/process/marks', methods=['POST'])
+def process_marks():
     """Handle calculation requests"""
     try:
-        data = request.get_json() or {}
+        # Check if file was uploaded
+        if 'file' in request.files:
+            file = request.files['file']
+            
+            # Read Excel file
+            df = pd.read_excel(file)
+            
+            # Get parameters from form
+            subjects = request.form.get('subjects', '').split(',')
+            grading_system = request.form.get('grading_system', 'KCSE')
+            
+        else:
+            # Get JSON data
+            data = request.json
+            
+            df = pd.DataFrame(data.get('students', []))
+            subjects = data.get('subjects', [])
+            grading_system = data.get('grading_system', 'KCSE')
         
-        # TODO: Call your calculation function here
-        # result = calculation_handler.process(data)
+        # Clean up subjects list
+        if isinstance(subjects, str):
+            subjects = [s.strip() for s in subjects.split(',') if s.strip()]
+        
+        # Identify subject columns (exclude student info columns)
+        student_info_columns = ['admission_no', 'student_id', 'full_name', 'class', 'stream']
+        if not subjects:
+            # Auto-detect subjects (columns that are not student info)
+            all_columns = df.columns.tolist()
+            subjects = [col for col in all_columns if col not in student_info_columns]
+        
+        # Initialize grade calculator
+        calculator = GradeCalculator(grading_system=grading_system)
+        
+        # Process marks
+        processed_df = calculator.process_marksheet(df, subjects)
+        
+        # Get summary
+        summary = calculator.get_class_summary(processed_df)
+        
+        # Convert to JSON response
+        response_data = {
+            "success": True,
+            "summary": summary,
+            "students": processed_df.to_dict('records'),
+            "metadata": {
+                "total_students": len(processed_df),
+                "subjects_processed": len(subjects),
+                "grading_system": grading_system
+            }
+        }
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "success": False
+        }), 500
+
+
+@app.route('/api/template/info', methods=['POST'])
+def get_template_info():
+    """Get information about template without generating file"""
+    try:
+        data = request.json
+        
+        students = data.get('students', [])
+        class_info = data.get('class_info', {})
+        subjects = data.get('subjects', [])
+        
+        template = MarkSheetTemplate(
+            student_list=students,
+            class_info=class_info,
+            subjects=subjects
+        )
+        
+        template.generate()
         
         return jsonify({
             "success": True,
-            "message": "Calculation request received",
-            "data": data,
-            "handler": "calculate",
-            "note": "Calculation function will be implemented in handlers/calculation_handler.py"
-        }), 200
+            "template_info": template.get_template_info(),
+            "metadata": template.get_metadata()
+        })
         
     except Exception as e:
-        logger.error(f"Error in calculate: {str(e)}")
         return jsonify({
-            "success": False,
-            "error": "calculation_error",
-            "message": str(e)
+            "error": str(e),
+            "success": False
         }), 500
+
+
 
 @app.route('/api/process', methods=['POST'])
 def process():
@@ -149,8 +259,9 @@ def api_info():
         "name": "Document & Calculation API Gateway",
         "version": "1.0.0",
         "endpoints": [
-            {"path": "/api/documents/request", "method": "POST", "desc": "Submit document requests"},
-            {"path": "/api/calculate", "method": "POST", "desc": "Perform calculations"},
+            {"path": "/api/template/marksheet", "method": "POST", "desc": "Get marksheet template file"},
+            {"path": "/api/template/info", "method": "POST", "desc": "Get information about template without generating file"},
+            {"path": "/api/process/marks", "method": "POST", "desc": "Process uploaded marks and calculate grades"},
             {"path": "/api/process", "method": "POST", "desc": "Generic processing"},
             {"path": "/health", "method": "GET", "desc": "Health check"},
             {"path": "/api/info", "method": "GET", "desc": "API information"}
