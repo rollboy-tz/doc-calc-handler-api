@@ -340,6 +340,72 @@ def debug_excel_file():
             "error": str(e)
         }), 500
 
+
+@app.route('/api/test/read-excel', methods=['POST'])
+def test_read_excel():
+    """Test endpoint to debug Excel reading issues"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"success": False, "error": "No file"}), 400
+        
+        file = request.files['file']
+        
+        # Save temp file
+        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        file.save(temp_path.name)
+        
+        results = {}
+        
+        # Test different header options
+        for header_option in [None, 0, 1, 2]:
+            try:
+                df = pd.read_excel(temp_path.name, header=header_option)
+                results[f'header={header_option}'] = {
+                    'columns': df.columns.tolist(),
+                    'first_row': df.iloc[0].tolist() if len(df) > 0 else [],
+                    'shape': df.shape,
+                    'sample': df.head(3).to_dict('records') if len(df) > 0 else []
+                }
+            except Exception as e:
+                results[f'header={header_option}'] = {'error': str(e)}
+        
+        # Try to detect what's in the file
+        df_no_header = pd.read_excel(temp_path.name, header=None)
+        
+        # Check first few rows
+        analysis = {
+            'first_3_rows': df_no_header.head(3).values.tolist(),
+            'likely_headers_row': None,
+            'data_starts_at_row': None
+        }
+        
+        # Try to find where headers are
+        for i in range(min(5, len(df_no_header))):
+            row = df_no_header.iloc[i].tolist()
+            # Check if this row looks like headers (strings, no numbers)
+            has_strings = any(isinstance(x, str) for x in row)
+            has_numbers = any(isinstance(x, (int, float)) for x in row if x is not None)
+            
+            if has_strings and not has_numbers:
+                analysis['likely_headers_row'] = i
+                analysis['data_starts_at_row'] = i + 1
+                break
+        
+        # Clean up
+        os.unlink(temp_path.name)
+        
+        return jsonify({
+            "success": True,
+            "analysis": analysis,
+            "read_results": results,
+            "recommendation": f"Use header={analysis['likely_headers_row']}" if analysis['likely_headers_row'] is not None else "File structure unclear"
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+
 # ==================== SINGLE SUBJECT PROCESSING ====================
 @app.route('/api/process/single-subject/excel', methods=['POST'])
 def process_single_subject_excel():
