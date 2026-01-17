@@ -3,12 +3,12 @@ Flask>=3.0.0
 Flask-CORS>=4.0.0
 
 # For calculations
-numpy>=1.26.0
-pandas>=2.2.0
+# numpy>=1.26.0
+# pandas>=2.2.0
 
 # For PDF generation
-reportlab>=4.0.0
-PyPDF2>=3.0.0
+# reportlab>=4.0.0
+# PyPDF2>=3.0.0
 
 # Environment
 python-dotenv>=1.0.0
