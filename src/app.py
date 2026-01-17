@@ -62,7 +62,8 @@ def global_middleware():
 from services.documents.marksheet_template import MarkSheetTemplate
 from services.calculations.grade_calculator import GradeCalculator
 from services.documents.subject_marksheet import SubjectMarkSheet
-
+from services.upload_handlers.single_subject_upload import SingleSubjectUploadHandler
+from services.upload_handlers.multi_subject_upload import MultiSubjectUploadHandler
 
 # ==================== ROUTES ====================
 @app.route('/api/template/marksheet', methods=['POST'])
@@ -177,68 +178,216 @@ def generate_subject_marksheet():
 
 
 
-@app.route('/api/process/marks', methods=['POST'])
-def process_marks():
-    """Handle calculation requests"""
+
+# ==================== UPLOAD ENDPOINTS ====================
+
+@app.route('/api/upload/single-subject', methods=['POST'])
+def upload_single_subject():
+    """
+    Upload Excel with ONE subject marks
+    Form data should include:
+    - file: Excel file
+    - subject_name: Name of subject
+    - max_score: Maximum score (default 100)
+    - grading_system: KCSE/KCPE (default KCSE)
+    """
     try:
-        # Check if file was uploaded
-        if 'file' in request.files:
-            file = request.files['file']
-            
-            # Read Excel file
-            df = pd.read_excel(file)
-            
-            # Get parameters from form
-            subjects = request.form.get('subjects', '').split(',')
-            grading_system = request.form.get('grading_system', 'KCSE')
-            
-        else:
-            # Get JSON data
-            data = request.json
-            
-            df = pd.DataFrame(data.get('students', []))
-            subjects = data.get('subjects', [])
-            grading_system = data.get('grading_system', 'KCSE')
+        if 'file' not in request.files:
+            return jsonify({
+                "success": False,
+                "error": "No file uploaded"
+            }), 400
         
-        # Clean up subjects list
-        if isinstance(subjects, str):
-            subjects = [s.strip() for s in subjects.split(',') if s.strip()]
+        file = request.files['file']
         
-        # Identify subject columns (exclude student info columns)
-        student_info_columns = ['admission_no', 'student_id', 'full_name', 'class', 'stream']
-        if not subjects:
-            # Auto-detect subjects (columns that are not student info)
-            all_columns = df.columns.tolist()
-            subjects = [col for col in all_columns if col not in student_info_columns]
+        # Get parameters
+        subject_name = request.form.get('subject_name')
+        if not subject_name:
+            return jsonify({
+                "success": False,
+                "error": "Subject name required"
+            }), 400
         
-        # Initialize grade calculator
-        calculator = GradeCalculator(grading_system=grading_system)
+        max_score = int(request.form.get('max_score', 100))
+        grading_system = request.form.get('grading_system', 'KCSE')
+        teacher_id = request.form.get('teacher_id', '')
         
-        # Process marks
-        processed_df = calculator.process_marksheet(df, subjects)
+        # Save uploaded file temporarily
+        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        file.save(temp_path.name)
         
-        # Get summary
-        summary = calculator.get_class_summary(processed_df)
+        # Process with single subject handler
+        handler = SingleSubjectUploadHandler(
+            subject_name=subject_name,
+            max_score=max_score,
+            grading_system=grading_system
+        )
         
-        # Convert to JSON response
-        response_data = {
-            "success": True,
-            "summary": summary,
-            "students": processed_df.to_dict('records'),
-            "metadata": {
-                "total_students": len(processed_df),
-                "subjects_processed": len(subjects),
-                "grading_system": grading_system
+        result = handler.process_upload(temp_path.name)
+        
+        # Add metadata
+        if result['success']:
+            result['metadata'] = {
+                'original_filename': file.filename,
+                'uploaded_by': teacher_id,
+                'uploaded_at': datetime.now().isoformat(),
+                'subject': subject_name
             }
-        }
         
-        return jsonify(response_data)
+        # Clean up temp file
+        os.unlink(temp_path.name)
+        
+        return jsonify(result)
         
     except Exception as e:
         return jsonify({
-            "error": str(e),
-            "success": False
+            "success": False,
+            "error": str(e)
         }), 500
+
+@app.route('/api/upload/multi-subject', methods=['POST'])
+def upload_multi_subject():
+    """
+    Upload Excel with MULTIPLE subjects marks
+    Form data should include:
+    - file: Excel file
+    - subjects: Comma-separated subject names (optional)
+    - grading_system: KCSE/KCPE (default KCSE)
+    """
+    try:
+        if 'file' not in request.files:
+            return jsonify({
+                "success": False,
+                "error": "No file uploaded"
+            }), 400
+        
+        file = request.files['file']
+        
+        # Get parameters
+        subjects_input = request.form.get('subjects', '')
+        if subjects_input:
+            subjects = [s.strip() for s in subjects_input.split(',')]
+        else:
+            subjects = []  # Will auto-detect
+        
+        grading_system = request.form.get('grading_system', 'KCSE')
+        class_name = request.form.get('class_name', '')
+        term = request.form.get('term', '')
+        year = request.form.get('year', datetime.now().year)
+        
+        # Save uploaded file temporarily
+        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        file.save(temp_path.name)
+        
+        # Process with multi-subject handler
+        handler = MultiSubjectUploadHandler(
+            subjects=subjects,
+            grading_system=grading_system
+        )
+        
+        result = handler.process_upload(temp_path.name)
+        
+        # Add metadata
+        if result['success']:
+            result['metadata'] = {
+                'original_filename': file.filename,
+                'class_name': class_name,
+                'term': term,
+                'year': year,
+                'uploaded_at': datetime.now().isoformat()
+            }
+        
+        # Clean up temp file
+        os.unlink(temp_path.name)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/upload/validate-template', methods=['POST'])
+def validate_template():
+    """
+    Validate template without processing
+    Returns validation results only
+    """
+    try:
+        if 'file' not in request.files:
+            return jsonify({
+                "success": False,
+                "error": "No file uploaded"
+            }), 400
+        
+        file = request.files['file']
+        
+        # Determine if single or multi-subject
+        upload_type = request.form.get('upload_type', 'multi')  # 'single' or 'multi'
+        
+        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        file.save(temp_path.name)
+        
+        df = pd.read_excel(temp_path.name)
+        
+        if upload_type == 'single':
+            subject_name = request.form.get('subject_name', '')
+            if not subject_name:
+                # Try to detect subject name
+                base_cols = ['admission_no', 'student_id', 'full_name', 'class', 'stream', 'Remarks']
+                subject_cols = [col for col in df.columns if col not in base_cols]
+                subject_name = subject_cols[0] if subject_cols else 'Unknown'
+            
+            handler = SingleSubjectUploadHandler(subject_name=subject_name)
+            template_info = handler.get_expected_template()
+            
+            # Basic validation
+            validation = handler._validate_structure(df)
+            
+            result = {
+                "success": True,
+                "upload_type": "single_subject",
+                "subject": subject_name,
+                "template_info": template_info,
+                "validation": validation,
+                "file_preview": {
+                    "columns": df.columns.tolist(),
+                    "row_count": len(df),
+                    "sample_data": df.head().to_dict('records')
+                }
+            }
+        
+        else:  # multi-subject
+            handler = MultiSubjectUploadHandler(subjects=[])
+            template_info = handler.get_expected_template()
+            
+            # Detect subjects
+            detected_subjects = handler._detect_subjects(df)
+            
+            result = {
+                "success": True,
+                "upload_type": "multi_subject",
+                "detected_subjects": detected_subjects,
+                "template_info": template_info,
+                "file_preview": {
+                    "columns": df.columns.tolist(),
+                    "row_count": len(df),
+                    "sample_data": df.head().to_dict('records')
+                }
+            }
+        
+        os.unlink(temp_path.name)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+
 
 
 @app.route('/api/template/info', methods=['POST'])
