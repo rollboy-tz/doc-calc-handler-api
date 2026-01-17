@@ -1,21 +1,16 @@
 """
-PURE API GATEWAY ROUTER
+PURE API GATEWAY ROUTER - Tanzania School Management System
 Only handles: Security, Routing, Request/Response
-Business logic will be in handler modules
+Business logic in handler modules
 """
 import os
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import pandas as pd
-import json
 import tempfile
 from datetime import datetime
-import os
 from dotenv import load_dotenv
 import logging
-
-
-
 
 # Load environment
 load_dotenv()
@@ -30,13 +25,13 @@ from middleware.security import SecurityMiddleware
 # Initialize Flask app
 app = Flask(__name__)
 
-# CORS Configuration - flexible
+# CORS Configuration
 ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', '').split(',')
 if ALLOWED_ORIGINS and ALLOWED_ORIGINS[0]:
     CORS(app, origins=ALLOWED_ORIGINS)
     logger.info(f"CORS allowed for: {ALLOWED_ORIGINS}")
 else:
-    CORS(app)  # Allow all for now
+    CORS(app)
     logger.warning("ALLOWED_ORIGINS not set - allowing all origins")
 
 # Initialize security middleware
@@ -58,427 +53,513 @@ def global_middleware():
     # Log request
     logger.info(f"📨 {request.method} {request.path} from {request.remote_addr}")
 
-# Import our services
+# Import our services (ADD NEW IMPORTS HERE)
 from services.documents.marksheet_template import MarkSheetTemplate
-from services.calculations.grade_calculator import GradeCalculator
 from services.documents.subject_marksheet import SubjectMarkSheet
 from services.upload_handlers.single_subject_upload import SingleSubjectUploadHandler
+from services.upload_handlers.single_subject_json_upload import SingleSubjectJSONUploadHandler
 from services.upload_handlers.multi_subject_upload import MultiSubjectUploadHandler
+from services.upload_handlers.multi_subject_json_upload import MultiSubjectJSONUploadHandler
 
-# ==================== ROUTES ====================
-@app.route('/api/template/marksheet', methods=['POST'])
-def generate_marksheet_template():
-    """Handle document requests"""
-    try:
-        data = request.json
-        
-        # Extract data
-        students = data.get('students', [])
-        class_info = data.get('class_info', {})
-        subjects = data.get('subjects', [])
-        
-        if not students:
-            return jsonify({
-                "error": "No students provided",
-                "message": "Please provide student list"
-            }), 400
-        
-        # Create mark sheet template
-        template = MarkSheetTemplate(
-            student_list=students,
-            class_info=class_info,
-            subjects=subjects,
-            include_instructions=True
-        )
-        
-        # Generate template
-        template.generate()
-        
-        # Get Excel file as bytes
-        excel_bytes = template.to_excel_bytes()
-        
-        # Generate filename
-        filename = template._generate_filename()
-        
-        # Save to temp file for sending
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
-        temp_file.write(excel_bytes.getvalue())
-        temp_file.close()
-        
-        # Return file
-        return send_file(
-            temp_file.name,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name=filename
-        )
-        
-    except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "success": False
-        }), 500
-
-
-@app.route('/api/template/subject', methods=['POST'])
-def generate_subject_marksheet():
-    """Generate mark sheet for ONE subject only"""
-    try:
-        data = request.json
-        
-        # Extract data
-        students = data.get('students', [])
-        subject_info = data.get('subject_info', {})
-        
-        if not students:
-            return jsonify({
-                "error": "No students provided",
-                "message": "Please provide student list"
-            }), 400
-        
-        if not subject_info.get('name'):
-            return jsonify({
-                "error": "Subject name required",
-                "message": "Please provide subject name"
-            }), 400
-        
-        # Create subject mark sheet
-        template = SubjectMarkSheet(
-            student_list=students,
-            subject_info=subject_info
-        )
-        
-        # Generate template
-        template.generate()
-        
-        # Get Excel file as bytes
-        excel_bytes = template.to_excel_bytes()
-        
-        # Generate filename
-        filename = template._generate_filename()
-        
-        # Save to temp file for sending
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
-        temp_file.write(excel_bytes.getvalue())
-        temp_file.close()
-        
-        # Return file
-        return send_file(
-            temp_file.name,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name=filename
-        )
-        
-    except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "success": False
-        }), 500
-
-# ======== EXCEL UPLOAD TEST ROUTE ================
-@app.route('/api/debug/xlxs/upload-test', methods=['POST'])
-def debug_upload_test():
-    """Debug endpoint to see exactly what's in the file"""
-    try:
-        if 'file' not in request.files:
-            return jsonify({"error": "No file"}), 400
-        
-        file = request.files['file']
-        
-        # Save temp file
-        import tempfile
-        import os
-        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
-        file.save(temp_path.name)
-        
-        # Read with pandas
-        import pandas as pd
-        import numpy as np
-        
-        # Read Excel
-        df = pd.read_excel(temp_path.name, engine='openpyxl')
-        
-        # CONVERT numpy types to Python native types
-        def convert_to_serializable(obj):
-            """Convert numpy/pandas types to JSON-serializable types"""
-            if pd.isna(obj):
-                return None
-            elif isinstance(obj, (np.integer, np.int64, np.int32)):
-                return int(obj)
-            elif isinstance(obj, (np.floating, np.float64, np.float32)):
-                return float(obj)
-            elif isinstance(obj, np.bool_):
-                return bool(obj)
-            elif isinstance(obj, (pd.Timestamp, pd.DatetimeIndex)):
-                return obj.isoformat()
-            else:
-                return str(obj)
-        
-        # Get serializable data
-        info = {
-            "filename": file.filename,
-            "file_size_bytes": os.path.getsize(temp_path.name),
-            "columns_found": df.columns.tolist(),
-            "columns_count": len(df.columns),
-            "rows_count": len(df),
-            "data_types": {col: str(df[col].dtype) for col in df.columns},
-            "first_3_rows": [],
-            "column_details": []
-        }
-        
-        # Convert first rows
-        for i in range(min(3, len(df))):
-            row_data = {}
-            for col in df.columns:
-                value = df.iloc[i][col]
-                row_data[col] = convert_to_serializable(value)
-            info["first_3_rows"].append(row_data)
-        
-        # Column details
-        for col in df.columns:
-            # Get sample values (convert to serializable)
-            sample_vals = []
-            for val in df[col].dropna().head(3):
-                sample_vals.append(convert_to_serializable(val))
-            
-            col_info = {
-                "name": col,
-                "type": str(df[col].dtype),
-                "non_null_count": int(df[col].notna().sum()),  # Convert to int
-                "null_count": int(df[col].isna().sum()),      # Convert to int
-                "sample_values": sample_vals
-            }
-            info["column_details"].append(col_info)
-        
-        # Clean up
-        os.unlink(temp_path.name)
-        
-        return jsonify({
-            "success": True,
-            "debug_info": info,
-            "expected_columns": [
-                "admission_no",
-                "student_id", 
-                "full_name",
-                "class",
-                "stream",
-                "MATHEMATICS",
-                "Remarks"
-            ]
-        })
-        
-    except Exception as e:
-        import traceback
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
-
-
-
-@app.route('/api/process', methods=['POST'])
-def process():
-    """Generic processing endpoint"""
-    try:
-        data = request.get_json() or {}
-        action = data.get('action', 'unknown')
-        
-        # TODO: Route to appropriate handler based on action
-        # if action == 'generate_pdf':
-        #     result = pdf_handler.generate(data)
-        # elif action == 'validate_data':
-        #     result = validation_handler.validate(data)
-        
-        return jsonify({
-            "success": True,
-            "message": f"Process request for action: {action}",
-            "data": data,
-            "handler": "process",
-            "action": action
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error in process: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": "process_error",
-            "message": str(e)
-        }), 500
-
-
-@app.route('/api/process/subject/marks', methods=['POST'])
-def process_subject_marks():
-    """
-    Process uploaded marks for ONE subject
-    
-    Can be used by subject teachers to submit marks
-    """
-    try:
-        if 'file' not in request.files:
-            return jsonify({
-                "error": "No file uploaded",
-                "message": "Please upload Excel file"
-            }), 400
-        
-        file = request.files['file']
-        
-        # Read Excel file
-        df = pd.read_excel(file)
-        
-        # Get subject info from form
-        subject_name = request.form.get('subject_name', 'Mathematics')
-        subject_code = request.form.get('subject_code', 'MATH')
-        max_score = int(request.form.get('max_score', 100))
-        teacher_id = request.form.get('teacher_id', '')
-        
-        # Validate file structure
-        required_columns = ['admission_no', 'student_id', 'full_name']
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        
-        if missing_columns:
-            return jsonify({
-                "error": "Invalid file structure",
-                "message": f"Missing columns: {', '.join(missing_columns)}"
-            }), 400
-        
-        # Extract marks column (should be the subject column)
-        subject_columns = [col for col in df.columns if col not in required_columns + ['class', 'stream', 'Remarks']]
-        
-        if not subject_columns:
-            return jsonify({
-                "error": "No subject marks found",
-                "message": "File should contain subject marks column"
-            }), 400
-        
-        subject_column = subject_columns[0]  # First non-student-info column
-        
-        # Initialize grade calculator
-        from services.calculations.grade_calculator import GradeCalculator
-        calculator = GradeCalculator()
-        
-        # Process marks for this subject
-        results = []
-        subject_marks = []
-        
-        for _, row in df.iterrows():
-            mark = row.get(subject_column)
-            
-            if pd.isna(mark):
-                grade = '-'
-                points = 0
-            else:
-                try:
-                    mark_value = float(mark)
-                    if 0 <= mark_value <= max_score:
-                        grade, points = calculator.calculate_grade(mark_value)
-                    else:
-                        grade = 'INVALID'
-                        points = 0
-                except:
-                    grade = 'INVALID'
-                    points = 0
-            
-            results.append({
-                'admission_no': row.get('admission_no'),
-                'student_id': row.get('student_id'),
-                'full_name': row.get('full_name'),
-                'class': row.get('class', ''),
-                'stream': row.get('stream', ''),
-                'subject': subject_name,
-                'mark': mark if not pd.isna(mark) else None,
-                'grade': grade,
-                'points': points,
-                'remarks': row.get('Remarks', '')
-            })
-            
-            if pd.notna(mark):
-                try:
-                    subject_marks.append(float(mark))
-                except:
-                    pass
-        
-        # Calculate subject statistics
-        if subject_marks:
-            subject_stats = {
-                'subject_average': sum(subject_marks) / len(subject_marks),
-                'subject_highest': max(subject_marks),
-                'subject_lowest': min(subject_marks),
-                'students_with_marks': len(subject_marks),
-                'students_missing': len(df) - len(subject_marks)
-            }
-        else:
-            subject_stats = {
-                'subject_average': 0,
-                'subject_highest': 0,
-                'subject_lowest': 0,
-                'students_with_marks': 0,
-                'students_missing': len(df)
-            }
-        
-        return jsonify({
-            "success": True,
-            "subject": subject_name,
-            "teacher_id": teacher_id,
-            "students_processed": len(results),
-            "subject_statistics": subject_stats,
-            "marks_data": results,
-            "summary": {
-                "file_received": file.filename,
-                "subject_column": subject_column,
-                "max_score": max_score,
-                "processed_at": datetime.now().isoformat()
-            }
-        })
-        
-    except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "success": False
-        }), 500
-
-
-
-# ==================== UTILITY ENDPOINTS ====================
+# ==================== HEALTH & INFO ====================
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
     return jsonify({
         "status": "healthy",
-        "service": "API Gateway Router",
-        "timestamp": os.times().elapsed,
-        "allowed_origins": ALLOWED_ORIGINS if ALLOWED_ORIGINS[0] else "ALL"
+        "service": "School Management API",
+        "timestamp": datetime.now().isoformat(),
+        "version": "2.0.0"
     }), 200
 
 @app.route('/api/info', methods=['GET'])
 def api_info():
     """API information endpoint"""
     return jsonify({
-        "name": "Document & Calculation API Gateway",
-        "version": "1.0.0",
-        "endpoints": [
-            {"path": "/api/template/marksheet", "method": "POST", "desc": "Get marksheet template file"},
-            {"path": "/api/template/subject", "method": "POST", "desc": "Generate mark sheet for ONE subject only"},
-            {"path": "/api/template/info", "method": "POST", "desc": "Get information about template without generating file"},
-            {"path": "/api/process/marks", "method": "POST", "desc": "Process uploaded marks and calculate grades"},
-            {"path": "/api/process", "method": "POST", "desc": "Generic processing"},
-            {"path": "/health", "method": "GET", "desc": "Health check"},
-            {"path": "/api/info", "method": "GET", "desc": "API information"}
-        ],
-        "security": {
-            "api_key_required": bool(os.getenv('API_KEY')),
-            "allowed_origins": ALLOWED_ORIGINS if ALLOWED_ORIGINS[0] else "Open"
+        "name": "Tanzania School Management System API",
+        "version": "2.0.0",
+        "description": "Tanzania NECTA Grading System",
+        "grading_systems": ["CSEE", "PSLE"],
+        "endpoints": {
+            "templates": {
+                "/api/templates/full": "Download full mark sheet template",
+                "/api/templates/subject": "Download single subject template",
+                "/api/templates/info": "Get template information"
+            },
+            "processing": {
+                "/api/process/single-subject/excel": "Process single subject Excel",
+                "/api/process/single-subject/json": "Process single subject JSON",
+                "/api/process/multi-subject/excel": "Process multiple subjects Excel",
+                "/api/process/multi-subject/json": "Process multiple subjects JSON"
+            },
+            "debug": {
+                "/api/debug/excel": "Debug Excel file structure"
+            },
+            "utility": {
+                "/health": "Health check",
+                "/api/info": "API information"
+            }
         }
     }), 200
+
+# ==================== TEMPLATE ENDPOINTS ====================
+@app.route('/api/templates/full', methods=['POST'])
+def download_full_template():
+    """Download FULL mark sheet template (all subjects)"""
+    try:
+        data = request.json
+        
+        if not data or 'students' not in data:
+            return jsonify({
+                "success": False,
+                "error": "Missing student data",
+                "message": "Please provide student list"
+            }), 400
+        
+        students = data.get('students', [])
+        class_info = data.get('class_info', {})
+        subjects = data.get('subjects', [
+            'Mathematics', 'English', 'Kiswahili', 
+            'Science', 'Geography', 'History', 
+            'Civics', 'Commerce', 'Bookkeeping'
+        ])
+        
+        if not students:
+            return jsonify({
+                "success": False,
+                "error": "Empty student list",
+                "message": "Student list cannot be empty"
+            }), 400
+        
+        # Create template
+        template = MarkSheetTemplate(
+            student_list=students,
+            class_info=class_info,
+            subjects=subjects
+        )
+        
+        template.generate()
+        excel_bytes = template.to_excel_bytes()
+        filename = template._generate_filename()
+        
+        # Save to temp file
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        temp_file.write(excel_bytes.getvalue())
+        temp_file.close()
+        
+        # Return file
+        return send_file(
+            temp_file.name,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Full template error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/templates/subject', methods=['POST'])
+def download_subject_template():
+    """Download SINGLE subject mark sheet template"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "No data provided"
+            }), 400
+        
+        students = data.get('students', [])
+        subject_info = data.get('subject_info', {})
+        
+        if not students:
+            return jsonify({
+                "success": False,
+                "error": "No students provided"
+            }), 400
+        
+        if not subject_info.get('name'):
+            return jsonify({
+                "success": False,
+                "error": "Subject name required"
+            }), 400
+        
+        # Create template
+        template = SubjectMarkSheet(
+            student_list=students,
+            subject_info=subject_info
+        )
+        
+        template.generate()
+        excel_bytes = template.to_excel_bytes()
+        filename = template._generate_filename()
+        
+        # Save to temp file
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        temp_file.write(excel_bytes.getvalue())
+        temp_file.close()
+        
+        # Return file
+        return send_file(
+            temp_file.name,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Subject template error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/templates/info', methods=['POST'])
+def get_template_info():
+    """Get template information without downloading"""
+    try:
+        data = request.json
+        template_type = data.get('type', 'subject')
+        
+        if template_type == 'subject':
+            subject_info = data.get('subject_info', {})
+            students = data.get('students', [])
+            
+            template = SubjectMarkSheet(
+                student_list=students,
+                subject_info=subject_info
+            )
+            info = template.get_template_summary()
+            
+        elif template_type == 'full':
+            class_info = data.get('class_info', {})
+            subjects = data.get('subjects', [])
+            students = data.get('students', [])
+            
+            template = MarkSheetTemplate(
+                student_list=students,
+                class_info=class_info,
+                subjects=subjects
+            )
+            info = template.get_template_summary()
+        
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Invalid template type. Use 'subject' or 'full'"
+            }), 400
+        
+        return jsonify({
+            "success": True,
+            "template_type": template_type,
+            "template_info": info
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# ==================== DEBUG ENDPOINTS ====================
+@app.route('/api/debug/excel', methods=['POST'])
+def debug_excel_file():
+    """Debug Excel file structure"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({
+                "success": False,
+                "error": "No file uploaded"
+            }), 400
+        
+        file = request.files['file']
+        
+        # Save temp file
+        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        file.save(temp_path.name)
+        
+        # Read Excel with header row 1
+        df = pd.read_excel(temp_path.name, header=1)
+        
+        # Get column info
+        columns_found = df.columns.tolist()
+        
+        # Normalize column names
+        def normalize(col):
+            return str(col).lower().strip().replace(' ', '_')
+        
+        normalized_columns = [normalize(col) for col in columns_found]
+        
+        # Check for required columns
+        required_columns = ['admission_no', 'student_id', 'full_name', 'gender']
+        missing_columns = []
+        
+        for req in required_columns:
+            if req not in normalized_columns:
+                missing_columns.append(req)
+        
+        # Sample data
+        sample_data = []
+        for i in range(min(3, len(df))):
+            row = {}
+            for col in df.columns:
+                value = df.iloc[i][col]
+                row[col] = str(value) if not pd.isna(value) else None
+            sample_data.append(row)
+        
+        # Clean up
+        os.unlink(temp_path.name)
+        
+        return jsonify({
+            "success": True,
+            "file_info": {
+                "filename": file.filename,
+                "row_count": len(df),
+                "column_count": len(columns_found),
+                "columns": columns_found,
+                "normalized_columns": normalized_columns,
+                "required_columns_check": {
+                    "admission_no": "admission_no" in normalized_columns,
+                    "student_id": "student_id" in normalized_columns,
+                    "full_name": "full_name" in normalized_columns,
+                    "gender": "gender" in normalized_columns
+                },
+                "missing_columns": missing_columns,
+                "sample_data": sample_data
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# ==================== SINGLE SUBJECT PROCESSING ====================
+@app.route('/api/process/single-subject/excel', methods=['POST'])
+def process_single_subject_excel():
+    """Process single subject Excel upload"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({
+                "success": False,
+                "error": "No file uploaded"
+            }), 400
+        
+        file = request.files['file']
+        
+        # Get parameters
+        subject_name = request.form.get('subject_name', 'Mathematics')
+        max_score = int(request.form.get('max_score', 100))
+        grading_rules = request.form.get('grading_rules', 'CSEE')
+        
+        # Save uploaded file temporarily
+        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        file.save(temp_path.name)
+        
+        # Initialize handler
+        handler = SingleSubjectUploadHandler(
+            subject_name=subject_name,
+            max_score=max_score,
+            grading_rules=grading_rules
+        )
+        
+        # Process upload
+        result = handler.process_upload(temp_path.name)
+        
+        # Clean up temp file
+        os.unlink(temp_path.name)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Single subject Excel error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/process/single-subject/json', methods=['POST'])
+def process_single_subject_json():
+    """Process single subject JSON data"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "No JSON data provided"
+            }), 400
+        
+        # Get parameters
+        subject_name = request.args.get('subject', 'Mathematics')
+        max_score = int(request.args.get('max_score', 100))
+        grading_rules = request.args.get('grading_rules', 'CSEE')
+        
+        # Initialize handler
+        handler = SingleSubjectJSONUploadHandler(
+            subject_name=subject_name,
+            max_score=max_score,
+            grading_rules=grading_rules
+        )
+        
+        # Process JSON
+        result = handler.process_json(data)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Single subject JSON error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/json-structure/single-subject', methods=['GET'])
+def get_single_subject_json_structure():
+    """Get expected JSON structure for single subject"""
+    subject = request.args.get('subject', 'Mathematics')
+    grading_rules = request.args.get('grading_rules', 'CSEE')
+    max_score = int(request.args.get('max_score', 100))
+    
+    handler = SingleSubjectJSONUploadHandler(
+        subject_name=subject,
+        max_score=max_score,
+        grading_rules=grading_rules
+    )
+    
+    return jsonify(handler.get_expected_structure())
+
+# ==================== MULTI SUBJECT PROCESSING ====================
+@app.route('/api/process/multi-subject/excel', methods=['POST'])
+def process_multi_subject_excel():
+    """Process multiple subjects Excel upload"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({
+                "success": False,
+                "error": "No file uploaded"
+            }), 400
+        
+        file = request.files['file']
+        
+        # Get subjects from form
+        subjects_str = request.form.get('subjects', '')
+        subjects = [s.strip() for s in subjects_str.split(',')] if subjects_str else []
+        grading_rules = request.form.get('grading_rules', 'CSEE')
+        
+        # Save uploaded file temporarily
+        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        file.save(temp_path.name)
+        
+        # If subjects not provided, detect from file
+        if not subjects:
+            df = pd.read_excel(temp_path.name, header=1)
+            all_columns = df.columns.tolist()
+            base_columns = ['admission_no', 'student_id', 'full_name', 'gender', 'class', 'stream', 'Remarks']
+            subjects = [col for col in all_columns if col not in base_columns]
+        
+        if not subjects:
+            os.unlink(temp_path.name)
+            return jsonify({
+                "success": False,
+                "error": "No subjects found in file or provided"
+            }), 400
+        
+        # Initialize handler
+        handler = MultiSubjectUploadHandler(
+            subjects=subjects,
+            grading_rules=grading_rules
+        )
+        
+        # Process upload
+        result = handler.process_upload(temp_path.name)
+        
+        # Clean up temp file
+        os.unlink(temp_path.name)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Multi subject Excel error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/process/multi-subject/json', methods=['POST'])
+def process_multi_subject_json():
+    """Process multiple subjects JSON data"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "No JSON data provided"
+            }), 400
+        
+        # Get parameters
+        subjects_str = request.args.get('subjects', '')
+        subjects = [s.strip() for s in subjects_str.split(',')] if subjects_str else []
+        grading_rules = request.args.get('grading_rules', 'CSEE')
+        
+        # If subjects not in URL, detect from first student
+        if not subjects and isinstance(data, list) and len(data) > 0:
+            first_student = data[0]
+            if isinstance(first_student.get('subjects'), dict):
+                subjects = list(first_student['subjects'].keys())
+        
+        if not subjects:
+            return jsonify({
+                "success": False,
+                "error": "No subjects specified"
+            }), 400
+        
+        # Initialize handler
+        handler = MultiSubjectJSONUploadHandler(
+            subjects=subjects,
+            grading_rules=grading_rules
+        )
+        
+        # Process JSON
+        result = handler.process_json(data)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Multi subject JSON error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/json-structure/multi-subject', methods=['GET'])
+def get_multi_subject_json_structure():
+    """Get expected JSON structure for multiple subjects"""
+    subjects_str = request.args.get('subjects', 'Mathematics,English,Kiswahili,Science,Geography')
+    subjects = [s.strip() for s in subjects_str.split(',')]
+    grading_rules = request.args.get('grading_rules', 'CSEE')
+    
+    handler = MultiSubjectJSONUploadHandler(
+        subjects=subjects,
+        grading_rules=grading_rules
+    )
+    
+    return jsonify(handler.get_expected_structure())
 
 # ==================== ERROR HANDLERS ====================
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({
         "success": False,
-        "error": "not_found",
-        "message": "Endpoint does not exist"
+        "error": "endpoint_not_found",
+        "message": "The requested endpoint does not exist"
     }), 404
 
 @app.errorhandler(405)
@@ -486,7 +567,7 @@ def method_not_allowed(e):
     return jsonify({
         "success": False,
         "error": "method_not_allowed",
-        "message": f"Method {request.method} not allowed for this endpoint"
+        "message": f"Method {request.method} is not allowed for this endpoint"
     }), 405
 
 @app.errorhandler(500)
@@ -494,8 +575,8 @@ def internal_error(e):
     logger.error(f"Internal server error: {e}")
     return jsonify({
         "success": False,
-        "error": "internal_error",
-        "message": "Internal server error occurred"
+        "error": "internal_server_error",
+        "message": "An internal server error occurred"
     }), 500
 
 # ==================== MAIN ====================
@@ -503,10 +584,10 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     
     logger.info("=" * 50)
-    logger.info("🚀 API Gateway Router Starting...")
+    logger.info("🚀 Tanzania School Management API Starting...")
     logger.info(f"📡 Port: {port}")
-    logger.info(f"🔒 API Key Required: {'Yes' if os.getenv('API_KEY') else 'No'}")
-    logger.info(f"🌐 Allowed Origins: {ALLOWED_ORIGINS if ALLOWED_ORIGINS[0] else 'ALL'}")
+    logger.info(f"🇹🇿 Grading System: NECTA (CSEE/PSLE)")
+    logger.info(f"📊 Endpoints: 12 available")
     logger.info("=" * 50)
     
     app.run(

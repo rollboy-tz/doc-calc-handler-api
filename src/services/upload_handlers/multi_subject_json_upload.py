@@ -1,21 +1,37 @@
-# services/upload_handlers/multi_subject_upload.py
+# services/upload_handlers/multi_subject_json_upload.py
 """
-MULTI SUBJECT UPLOAD HANDLER - TANZANIA NECTA SYSTEM  
-Process uploaded Excel with marks for MULTIPLE subjects
+MULTI SUBJECT JSON UPLOAD HANDLER - TANZANIA NECTA SYSTEM  
+Process JSON data with marks for MULTIPLE subjects
 Returns clean data with gender analysis
 """
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Set
+from typing import Dict, List
 from ..calculations.grade_calculator import GradeCalculator
 
-class MultiSubjectUploadHandler:
+class MultiSubjectJSONUploadHandler:
     """
-    Handle upload of Excel file with MULTIPLE subjects marks - Tanzania NECTA
+    Handle JSON data with MULTIPLE subjects marks - Tanzania NECTA
     
-    Expected Excel structure:
-    - Columns A-F: Student info (including gender)
-    - Columns G onward: Subject marks (one column per subject)
+    Expected JSON structure:
+    [
+        {
+            "admission_no": "ADM001",
+            "student_id": "STU001",
+            "full_name": "JOHN MWAMBA",
+            "gender": "M",
+            "class": "FORM 4",
+            "stream": "EAST",
+            "subjects": {
+                "MATHEMATICS": 95,
+                "ENGLISH": 92,
+                "KISWAHILI": 88,
+                "SCIENCE": 90,
+                "GEOGRAPHY": 85
+            },
+            "remarks": "Excellent student"
+        }
+    ]
     """
     
     def __init__(self, subjects: List[str], grading_rules: str = 'CSEE'):
@@ -23,52 +39,45 @@ class MultiSubjectUploadHandler:
         self.grading_rules = grading_rules  # 'CSEE' or 'PSLE'
         self.calculator = GradeCalculator(grading_rules)
         
-        # Base columns that should always be present
-        self.base_columns = ['admission_no', 'student_id', 'full_name', 'gender', 'class', 'stream']
+        # Base fields that should always be present
+        self.base_fields = ['admission_no', 'student_id', 'full_name', 'gender', 'class', 'stream', 'subjects']
     
-    def process_upload(self, excel_file_path: str) -> Dict:
+    def process_json(self, json_data: List[Dict]) -> Dict:
         """
-        Process uploaded multi-subject Excel file
+        Process JSON data with multiple subjects marks
         
         Args:
-            excel_file_path: Path to uploaded Excel file
+            json_data: List of student dictionaries with subjects marks
             
         Returns:
-            Dictionary with processed data for Node.js
+            Dictionary with processed data
         """
         try:
-            # 1. Read Excel file with header row 1 (skip title)
-            df = pd.read_excel(excel_file_path, header=1)
-            
-            # 2. Detect subjects from file
-            detected_subjects = self._detect_subjects(df)
-            
-            # 3. Validate file structure
-            validation = self._validate_structure(df, detected_subjects)
+            # 1. Validate JSON structure
+            validation = self._validate_json_structure(json_data)
             if not validation['valid']:
                 return {
                     'success': False,
-                    'error': 'Invalid file structure',
-                    'details': validation['errors'],
-                    'detected_subjects': detected_subjects
+                    'error': 'Invalid JSON structure',
+                    'details': validation['errors']
                 }
             
-            # 4. Extract and clean data for each student
-            student_records = self._extract_student_records(df, detected_subjects)
+            # 2. Extract and clean data
+            cleaned_data = self._extract_json_data(json_data)
             
-            # 5. Calculate grades for each subject (Tanzania NECTA)
-            processed_records = self._calculate_all_grades(student_records, detected_subjects)
+            # 3. Calculate grades for all subjects (Tanzania NECTA)
+            processed_data = self._calculate_all_grades(cleaned_data)
             
-            # 6. Calculate student summaries and positions
-            final_results = self._calculate_summaries(processed_records, detected_subjects)
+            # 4. Calculate student summaries and positions
+            final_results = self._calculate_summaries(processed_data)
             
-            # 7. Generate class-wide statistics with GENDER analysis
-            class_summary = self._generate_class_summary(final_results, detected_subjects)
+            # 5. Generate class-wide statistics with GENDER analysis
+            class_summary = self._generate_class_summary(final_results)
             
-            # 8. Return comprehensive data for Node.js
+            # 6. Return comprehensive data
             return {
                 'success': True,
-                'subjects_processed': detected_subjects,
+                'subjects_processed': self.subjects,
                 'total_students': len(final_results),
                 'grading_rules': self.grading_rules,
                 'class_summary': class_summary,
@@ -76,83 +85,68 @@ class MultiSubjectUploadHandler:
                 'processing_stats': {
                     'valid_students': len([s for s in final_results if s['valid']]),
                     'invalid_students': len([s for s in final_results if not s['valid']]),
-                    'subjects_found': len(detected_subjects),
-                    'subjects_missing': list(set(self.subjects) - set(detected_subjects)) if self.subjects else []
+                    'subjects_found': len(self.subjects),
+                    'subjects_with_data': self._count_subjects_with_data(final_results)
                 }
             }
             
         except Exception as e:
             return {
                 'success': False,
-                'error': f'Processing failed: {str(e)}',
+                'error': f'JSON processing failed: {str(e)}',
                 'subjects_expected': self.subjects
             }
     
-    def _detect_subjects(self, df: pd.DataFrame) -> List[str]:
-        """Detect subject columns in the uploaded file"""
-        all_columns = [str(col).strip() for col in df.columns.tolist()]
-        
-        # Subject columns are those not in base columns
-        base_set = set(self.base_columns)
-        subject_columns = [col for col in all_columns if col not in base_set and col.lower() != 'remarks']
-        
-        # If subjects were specified, filter to only those
-        if self.subjects:
-            # Match case-insensitive
-            available_subjects = []
-            for specified_subject in self.subjects:
-                for actual_col in subject_columns:
-                    if specified_subject.lower() in actual_col.lower() or actual_col.lower() in specified_subject.lower():
-                        available_subjects.append(actual_col)
-            subject_columns = available_subjects
-        
-        return subject_columns
-    
-    def _validate_structure(self, df: pd.DataFrame, subjects: List[str]) -> Dict:
-        """Validate Excel file structure"""
+    def _validate_json_structure(self, json_data: List[Dict]) -> Dict:
+        """Validate JSON data structure"""
         errors = []
         
-        # Check base columns (all are required)
-        for col in self.base_columns:
-            if col not in df.columns:
-                errors.append(f'Missing required column: {col}')
+        if not isinstance(json_data, list):
+            return {'valid': False, 'errors': ['JSON data must be a list'], 'invalid_count': 0}
         
-        # Check gender values
-        if 'gender' in df.columns:
-            unique_genders = df['gender'].dropna().unique()
-            for gender in unique_genders:
-                gender_str = str(gender).strip().lower()
-                if gender_str not in ['m', 'f', 'male', 'female']:
-                    errors.append(f'Invalid gender value: {gender}')
+        # Check for required fields
+        required_fields = ['admission_no', 'student_id', 'full_name', 'gender', 'subjects']
         
-        # Check if we have any subject columns
-        if not subjects:
-            errors.append('No subject columns found in file')
-        
-        # Validate each row
-        for idx, row in df.iterrows():
-            row_num = idx + 2
+        for idx, student in enumerate(json_data):
+            row_num = idx + 1
             
-            # Check student info
-            if pd.isna(row.get('admission_no')) or pd.isna(row.get('student_id')) or pd.isna(row.get('full_name')):
-                errors.append(f'Row {row_num}: Missing admission_no, student_id, or full_name')
+            # Check if it's a dictionary
+            if not isinstance(student, dict):
+                errors.append(f'Row {row_num}: Not a valid dictionary')
+                continue
+            
+            # Check required fields
+            missing_fields = [field for field in required_fields if field not in student]
+            if missing_fields:
+                errors.append(f'Row {row_num}: Missing fields: {", ".join(missing_fields)}')
+                continue
+            
+            # Check admission_no and student_id
+            if not student['admission_no'] or not student['student_id']:
+                errors.append(f'Row {row_num}: Missing admission_no or student_id')
                 continue
             
             # Validate gender
-            if pd.notna(row.get('gender')):
-                gender = str(row['gender']).strip().lower()
-                if gender not in ['m', 'f', 'male', 'female']:
-                    errors.append(f'Row {row_num}: Invalid gender: {row["gender"]}')
+            gender = str(student.get('gender', '')).strip().lower()
+            if gender not in ['m', 'f', 'male', 'female']:
+                errors.append(f'Row {row_num}: Invalid gender: {student.get("gender")}')
+                continue
+            
+            # Validate subjects structure
+            subjects = student.get('subjects')
+            if not isinstance(subjects, dict):
+                errors.append(f'Row {row_num}: Subjects must be a dictionary')
+                continue
             
             # Validate marks for each subject
-            for subject in subjects:
-                if subject in df.columns and pd.notna(row[subject]):
+            for subject_name, mark in subjects.items():
+                if mark is not None:
                     try:
-                        mark = float(row[subject])
-                        if not (0 <= mark <= 100):  # Assuming 100 max for all subjects
-                            errors.append(f'Row {row_num}: {subject} marks {mark} out of range (0-100)')
-                    except ValueError:
-                        errors.append(f'Row {row_num}: {subject} invalid marks format')
+                        mark_float = float(mark)
+                        if not (0 <= mark_float <= 100):
+                            errors.append(f'Row {row_num}: {subject_name} marks {mark} out of range (0-100)')
+                    except (ValueError, TypeError):
+                        errors.append(f'Row {row_num}: {subject_name} invalid marks: {mark}')
         
         return {
             'valid': len(errors) == 0,
@@ -160,70 +154,71 @@ class MultiSubjectUploadHandler:
             'total_errors': len(errors)
         }
     
-    def _extract_student_records(self, df: pd.DataFrame, subjects: List[str]) -> List[Dict]:
-        """Extract student records from DataFrame"""
-        records = []
+    def _extract_json_data(self, json_data: List[Dict]) -> List[Dict]:
+        """Extract and clean data from JSON"""
+        cleaned_data = []
         
-        for _, row in df.iterrows():
-            # Skip rows with missing essential info
-            if pd.isna(row.get('admission_no')) or pd.isna(row.get('student_id')):
-                continue
-            
+        for student in json_data:
             # Normalize gender
             gender = None
-            if pd.notna(row.get('gender')):
-                gender_str = str(row['gender']).strip().lower()
+            if 'gender' in student and student['gender']:
+                gender_str = str(student['gender']).strip().lower()
                 if gender_str in ['m', 'male']:
                     gender = 'M'
                 elif gender_str in ['f', 'female']:
                     gender = 'F'
             
             record = {
-                'admission_no': str(row['admission_no']).strip(),
-                'student_id': str(row['student_id']).strip(),
-                'full_name': str(row.get('full_name', '')).strip(),
+                'admission_no': str(student.get('admission_no', '')).strip(),
+                'student_id': str(student.get('student_id', '')).strip(),
+                'full_name': str(student.get('full_name', '')).strip(),
                 'gender': gender,
-                'class': str(row.get('class', '')).strip(),
-                'stream': str(row.get('stream', '')).strip(),
+                'class': str(student.get('class', '')).strip(),
+                'stream': str(student.get('stream', '')).strip(),
                 'subjects': {},
+                'remarks': str(student.get('remarks', '')).strip(),
                 'valid': True,
                 'errors': []
             }
             
             # Extract marks for each subject
-            for subject in subjects:
-                if subject in df.columns:
-                    if pd.notna(row[subject]):
+            subjects_data = student.get('subjects', {})
+            for subject_name in self.subjects:
+                if subject_name in subjects_data:
+                    mark = subjects_data[subject_name]
+                    if mark is not None:
                         try:
-                            record['subjects'][subject] = {
-                                'mark': float(row[subject]),
+                            record['subjects'][subject_name] = {
+                                'mark': float(mark),
                                 'grade': None,      # Will be calculated
                                 'remarks': None     # Will be calculated
                             }
-                        except:
-                            record['subjects'][subject] = {'mark': None, 'error': 'Invalid format'}
+                        except (ValueError, TypeError):
+                            record['subjects'][subject_name] = {'mark': None, 'error': 'Invalid format'}
                             record['valid'] = False
-                            record['errors'].append(f'{subject}: Invalid marks format')
+                            record['errors'].append(f'{subject_name}: Invalid marks format')
                     else:
-                        record['subjects'][subject] = {'mark': None, 'status': 'ABSENT'}
+                        record['subjects'][subject_name] = {'mark': None, 'status': 'ABSENT'}
+                else:
+                    record['subjects'][subject_name] = {'mark': None, 'status': 'NOT PROVIDED'}
             
-            records.append(record)
+            cleaned_data.append(record)
         
-        return records
+        return cleaned_data
     
-    def _calculate_all_grades(self, records: List[Dict], subjects: List[str]) -> List[Dict]:
+    def _calculate_all_grades(self, records: List[Dict]) -> List[Dict]:
         """Calculate grades for all subjects using Tanzania NECTA system"""
         for record in records:
-            for subject, data in record['subjects'].items():
+            for subject_name, data in record['subjects'].items():
                 if data.get('mark') is not None:
                     grade_info = self.calculator.calculate_grade(data['mark'])
-                    record['subjects'][subject]['grade'] = grade_info['grade']
-                    record['subjects'][subject]['remarks'] = grade_info['remarks']
-                    record['subjects'][subject]['grade_points'] = grade_info['points']  # TZ points (1-5)
+                    record['subjects'][subject_name]['grade'] = grade_info['grade']
+                    record['subjects'][subject_name]['remarks'] = grade_info['remarks']
+                    record['subjects'][subject_name]['grade_points'] = grade_info['points']  # TZ points (1-5)
         
         return records
     
-    def _calculate_summaries(self, records: List[Dict], subjects: List[str]) -> List[Dict]:
+    def _calculate_summaries(self, records: List[Dict]) -> List[Dict]:
         """Calculate student summaries (totals, averages, positions)"""
         for record in records:
             # Get all valid marks
@@ -231,11 +226,11 @@ class MultiSubjectUploadHandler:
             grades = []
             present_subjects = []
             
-            for subject, data in record['subjects'].items():
+            for subject_name, data in record['subjects'].items():
                 if data.get('mark') is not None:
                     marks.append(data['mark'])
                     grades.append(data.get('grade', ''))
-                    present_subjects.append(subject)
+                    present_subjects.append(subject_name)
             
             # Count passing grades (A, B, C, D are passes in TZ)
             passing_grades = ['A', 'B', 'C', 'D']
@@ -245,9 +240,9 @@ class MultiSubjectUploadHandler:
                 record['summary'] = {
                     'total_marks': sum(marks),
                     'average_mark': round(sum(marks) / len(marks), 2),
-                    'subjects_count': len(subjects),
+                    'subjects_count': len(self.subjects),
                     'subjects_present': len(present_subjects),
-                    'subjects_absent': len(subjects) - len(present_subjects),
+                    'subjects_absent': len(self.subjects) - len(present_subjects),
                     'subjects_passed': len(passed_subjects),
                     'subjects_failed': len(present_subjects) - len(passed_subjects),
                     'pass_rate': round((len(passed_subjects) / len(present_subjects)) * 100, 1) if present_subjects else 0,
@@ -257,9 +252,9 @@ class MultiSubjectUploadHandler:
                 record['summary'] = {
                     'total_marks': 0,
                     'average_mark': 0,
-                    'subjects_count': len(subjects),
+                    'subjects_count': len(self.subjects),
                     'subjects_present': 0,
-                    'subjects_absent': len(subjects),
+                    'subjects_absent': len(self.subjects),
                     'subjects_passed': 0,
                     'subjects_failed': 0,
                     'pass_rate': 0,
@@ -292,7 +287,7 @@ class MultiSubjectUploadHandler:
         
         return records
     
-    def _generate_class_summary(self, records: List[Dict], subjects: List[str]) -> Dict:
+    def _generate_class_summary(self, records: List[Dict]) -> Dict:
         """Generate class-wide statistics with GENDER analysis"""
         # Gender breakdown
         male_students = [r for r in records if r.get('gender') == 'M']
@@ -301,14 +296,14 @@ class MultiSubjectUploadHandler:
         
         # Subject-wise statistics
         subject_stats = {}
-        for subject in subjects:
+        for subject_name in self.subjects:
             marks = []
             male_marks = []
             female_marks = []
             
             for record in records:
-                if subject in record['subjects'] and record['subjects'][subject].get('mark') is not None:
-                    mark = record['subjects'][subject]['mark']
+                if subject_name in record['subjects'] and record['subjects'][subject_name].get('mark') is not None:
+                    mark = record['subjects'][subject_name]['mark']
                     marks.append(mark)
                     
                     # Separate by gender
@@ -319,14 +314,19 @@ class MultiSubjectUploadHandler:
             
             if marks:
                 # Grade distribution for this subject
-                grades = [r['subjects'][subject].get('grade', 'ABSENT') for r in records if subject in r['subjects']]
+                grades = []
+                for record in records:
+                    if subject_name in record['subjects']:
+                        grade = record['subjects'][subject_name].get('grade', 'ABSENT')
+                        grades.append(grade)
+                
                 grade_dist = {}
-                for grade in ['A', 'B', 'C', 'D', 'E', 'ABSENT']:
+                for grade in ['A', 'B', 'C', 'D', 'E', 'ABSENT', 'NOT PROVIDED']:
                     count = grades.count(grade)
                     if count > 0:
                         grade_dist[grade] = count
                 
-                subject_stats[subject] = {
+                subject_stats[subject_name] = {
                     'average': round(np.mean(marks), 2),
                     'highest': max(marks) if marks else 0,
                     'lowest': min(marks) if marks else 0,
@@ -346,7 +346,7 @@ class MultiSubjectUploadHandler:
         male_totals = [r['summary']['total_marks'] for r in male_students if r['summary']['total_marks'] > 0]
         female_totals = [r['summary']['total_marks'] for r in female_students if r['summary']['total_marks'] > 0]
         
-        # Pass rate by gender
+        # Pass rate by gender (students who passed at least one subject)
         male_passed = len([r for r in male_students if r['summary']['subjects_passed'] > 0])
         female_passed = len([r for r in female_students if r['summary']['subjects_passed'] > 0])
         
@@ -378,6 +378,17 @@ class MultiSubjectUploadHandler:
             'summary_notes': self._generate_summary_notes(records, subject_stats, male_students, female_students)
         }
     
+    def _count_subjects_with_data(self, records: List[Dict]) -> Dict:
+        """Count how many students provided data for each subject"""
+        subject_counts = {}
+        for subject_name in self.subjects:
+            count = 0
+            for record in records:
+                if subject_name in record['subjects'] and record['subjects'][subject_name].get('mark') is not None:
+                    count += 1
+            subject_counts[subject_name] = count
+        return subject_counts
+    
     def _generate_summary_notes(self, records, subject_stats, male_students, female_students):
         """Generate summary notes in Swahili"""
         notes = [
@@ -387,14 +398,12 @@ class MultiSubjectUploadHandler:
         ]
         
         # Subject performance highlights
-        for subject, stats in subject_stats.items():
-            if stats['students_with_marks'] > 0:
-                best_subject = max(subject_stats.items(), key=lambda x: x[1]['average'])[0] if subject_stats else ""
-                worst_subject = min(subject_stats.items(), key=lambda x: x[1]['average'])[0] if subject_stats else ""
-                
-                notes.append(f"Somo bora: {best_subject} (wastani: {subject_stats[best_subject]['average']}%)")
-                notes.append(f"Somo dhaifu: {worst_subject} (wastani: {subject_stats[worst_subject]['average']}%)")
-                break
+        if subject_stats:
+            best_subject = max(subject_stats.items(), key=lambda x: x[1]['average'])[0]
+            worst_subject = min(subject_stats.items(), key=lambda x: x[1]['average'])[0]
+            
+            notes.append(f"Somo bora: {best_subject} (wastani: {subject_stats[best_subject]['average']}%)")
+            notes.append(f"Somo dhaifu: {worst_subject} (wastani: {subject_stats[worst_subject]['average']}%)")
         
         # Gender performance comparison
         if male_students and female_students:
@@ -404,19 +413,57 @@ class MultiSubjectUploadHandler:
             notes.append(f"Wastani wa wavulana: {round(male_avg, 1)}%")
             notes.append(f"Wastani wa wasichana: {round(female_avg, 1)}%")
         
+        # Overall pass rate
+        total_passed = len([r for r in records if r['summary']['subjects_passed'] > 0])
+        overall_pass_rate = round((total_passed / len(records)) * 100, 1) if records else 0
+        notes.append(f"Asilimia ya kufaulu kwa darasa: {overall_pass_rate}%")
+        
         return notes
     
-    def get_expected_template(self) -> Dict:
-        """Get expected template structure for multiple subjects"""
+    def get_expected_structure(self) -> Dict:
+        """Get expected JSON structure"""
         return {
-            'required_base_columns': self.base_columns,
-            'subject_columns': self.subjects,
+            'subjects': self.subjects,
             'grading_rules': self.grading_rules,
-            'instructions': 'Jaza alama katika safu za masomo pekee. Usihariri taarifa za mwanafunzi.',
+            'expected_fields': self.base_fields,
+            'sample_data': [
+                {
+                    'admission_no': 'ADM001',
+                    'student_id': 'STU001',
+                    'full_name': 'JOHN MWAMBA',
+                    'gender': 'M',
+                    'class': 'FORM 4',
+                    'stream': 'EAST',
+                    'subjects': {
+                        'MATHEMATICS': 95,
+                        'ENGLISH': 92,
+                        'KISWAHILI': 88,
+                        'SCIENCE': 90,
+                        'GEOGRAPHY': 85
+                    },
+                    'remarks': 'Excellent student'
+                },
+                {
+                    'admission_no': 'ADM002',
+                    'student_id': 'STU002',
+                    'full_name': 'SARAH JUMANNE',
+                    'gender': 'F',
+                    'class': 'FORM 4',
+                    'stream': 'EAST',
+                    'subjects': {
+                        'MATHEMATICS': 78,
+                        'ENGLISH': 85,
+                        'KISWAHILI': 82,
+                        'SCIENCE': 76,
+                        'GEOGRAPHY': 80
+                    },
+                    'remarks': 'Very good performance'
+                }
+            ],
             'validation_rules': {
                 'marks_range': '0-100 kwa masomo yote',
                 'gender_values': 'M/male, F/female',
-                'required_fields': self.base_columns,
-                'optional_fields': ['Remarks']
+                'required_fields': self.base_fields,
+                'subjects_required': self.subjects
             }
         }

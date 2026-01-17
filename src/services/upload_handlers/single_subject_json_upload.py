@@ -1,138 +1,151 @@
-# services/upload_handlers/single_subject_upload.py
+# services/upload_handlers/single_subject_json_upload.py
 """
-SINGLE SUBJECT UPLOAD HANDLER - TANZANIA NECTA SYSTEM
-Process uploaded Excel with marks for ONE subject only
-Returns clean data with rank and gender analysis
+SINGLE SUBJECT JSON UPLOAD HANDLER - TANZANIA NECTA SYSTEM
+Process JSON data with marks for ONE subject only
+Same logic as Excel upload but accepts JSON input
 """
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional
+from typing import Dict, List
 from ..calculations.grade_calculator import GradeCalculator
 
-class SingleSubjectUploadHandler:
+class SingleSubjectJSONUploadHandler:
     """
-    Handle upload of Excel file with ONE subject marks - Tanzania NECTA
+    Handle JSON data with ONE subject marks - Tanzania NECTA
     
-    Expected Excel structure:
-    - Columns A-E: Student info (read-only)
-    - Column F: Subject marks
-    - Column G: Remarks (optional)
+    Expected JSON structure:
+    [
+        {
+            "admission_no": "ADM001",
+            "student_id": "STU001",
+            "full_name": "JOHN MWAMBA",
+            "gender": "M",
+            "class": "FORM 4",
+            "stream": "EAST",
+            "marks": 85,
+            "remarks": "Excellent"
+        }
+    ]
     """
     
     def __init__(self, subject_name: str, max_score: int = 100, grading_rules: str = 'CSEE'):
         self.subject_name = subject_name
         self.max_score = max_score
-        self.grading_rules = grading_rules  # 'CSEE' or 'PSLE' - TU grading rules
+        self.grading_rules = grading_rules  # 'CSEE' or 'PSLE'
         self.calculator = GradeCalculator(grading_rules)
         
-        # Expected columns in uploaded file
-        self.expected_columns = [
+        # Expected fields in JSON
+        self.expected_fields = [
             'admission_no', 'student_id', 'full_name', 'gender',
-            'class', 'stream', subject_name, 'Remarks'
+            'class', 'stream', 'marks', 'remarks'
         ]
     
-    def process_upload(self, excel_file_path: str) -> Dict:
+    def process_json(self, json_data: List[Dict]) -> Dict:
         """
-        Process uploaded single subject Excel file
+        Process JSON data with subject marks
         
         Args:
-            excel_file_path: Path to uploaded Excel file
+            json_data: List of student dictionaries with marks
             
         Returns:
-            Dictionary with processed data for Node.js
+            Dictionary with processed data
         """
         try:
-            # 1. Read Excel file
-            df = pd.read_excel(excel_file_path, header=1)
-            
-            # 2. Validate file structure
-            validation = self._validate_structure(df)
+            # 1. Validate JSON structure
+            validation = self._validate_json_structure(json_data)
             if not validation['valid']:
                 return {
                     'success': False,
-                    'error': 'Invalid file structure',
+                    'error': 'Invalid JSON structure',
                     'details': validation['errors']
                 }
             
-            # 3. Extract and clean data
-            cleaned_data = self._extract_data(df)
+            # 2. Extract and clean data (JSON is already in dict format)
+            cleaned_data = self._extract_json_data(json_data)
             
-            # 4. Calculate grades (Tanzania NECTA system)
+            # 3. Calculate grades (Tanzania NECTA system)
             processed_data = self._calculate_grades(cleaned_data)
             
-            # 5. Calculate ranks
+            # 4. Calculate ranks
             processed_data = self._calculate_ranks(processed_data)
             
-            # 6. Generate subject analysis with GENDER breakdown
+            # 5. Generate subject analysis with GENDER breakdown
             analysis = self._generate_subject_analysis(processed_data)
             
-            # 7. Return data for Node.js to save
+            # 6. Return processed data
             return {
                 'success': True,
                 'subject': self.subject_name,
                 'max_score': self.max_score,
                 'grading_rules': self.grading_rules,
                 'students_processed': len(processed_data),
-                'subject_analysis': analysis,  # TAHINI analysis with gender
-                'student_data': processed_data,  # Individual student results
+                'subject_analysis': analysis,
+                'student_data': processed_data,
                 'validation_stats': {
                     'valid_rows': len(processed_data),
-                    'invalid_rows': validation['invalid_count'],
-                    'absent_students': analysis['absent_students']
+                    'invalid_rows': validation['invalid_count']
                 }
             }
             
         except Exception as e:
             return {
                 'success': False,
-                'error': f'Processing failed: {str(e)}',
+                'error': f'JSON processing failed: {str(e)}',
                 'subject': self.subject_name
             }
     
-    def _validate_structure(self, df: pd.DataFrame) -> Dict:
-        """Validate Excel file structure"""
+    def _validate_json_structure(self, json_data: List[Dict]) -> Dict:
+        """Validate JSON data structure"""
         errors = []
         valid_count = 0
         invalid_count = 0
         
-        # Check for required columns
-        required_columns = ['admission_no', 'student_id', 'full_name', 'gender', self.subject_name]
+        if not isinstance(json_data, list):
+            return {'valid': False, 'errors': ['JSON data must be a list'], 'invalid_count': 0}
         
-        for col in required_columns:
-            if col not in df.columns:
-                errors.append(f'Missing required column: {col}')
+        # Check for required fields
+        required_fields = ['admission_no', 'student_id', 'full_name', 'gender', 'marks']
         
-        if errors:
-            return {'valid': False, 'errors': errors, 'invalid_count': len(df)}
-        
-        # Validate each row
-        for idx, row in df.iterrows():
-            row_num = idx + 2  # Excel row number
+        for idx, student in enumerate(json_data):
+            row_num = idx + 1
             
-            # Check student info
-            if pd.isna(row['admission_no']) or pd.isna(row['student_id']) or pd.isna(row['full_name']):
-                errors.append(f'Row {row_num}: Missing student information')
+            # Check if it's a dictionary
+            if not isinstance(student, dict):
+                errors.append(f'Row {row_num}: Not a valid dictionary')
                 invalid_count += 1
                 continue
             
-            # Check gender is valid
-            if pd.notna(row['gender']):
-                gender = str(row['gender']).strip().lower()
-                if gender not in ['m', 'f', 'male', 'female']:
-                    errors.append(f'Row {row_num}: Invalid gender: {row["gender"]}')
-                    invalid_count += 1
-                    continue
+            # Check required fields
+            missing_fields = [field for field in required_fields if field not in student]
+            if missing_fields:
+                errors.append(f'Row {row_num}: Missing fields: {", ".join(missing_fields)}')
+                invalid_count += 1
+                continue
             
-            # Check marks if present
-            if pd.notna(row[self.subject_name]):
+            # Check admission_no and student_id
+            if not student['admission_no'] or not student['student_id']:
+                errors.append(f'Row {row_num}: Missing admission_no or student_id')
+                invalid_count += 1
+                continue
+            
+            # Validate gender
+            gender = str(student.get('gender', '')).strip().lower()
+            if gender not in ['m', 'f', 'male', 'female']:
+                errors.append(f'Row {row_num}: Invalid gender: {student.get("gender")}')
+                invalid_count += 1
+                continue
+            
+            # Validate marks
+            marks = student.get('marks')
+            if marks is not None:
                 try:
-                    mark = float(row[self.subject_name])
-                    if not (0 <= mark <= self.max_score):
-                        errors.append(f'Row {row_num}: Marks {mark} out of range (0-{self.max_score})')
+                    marks_float = float(marks)
+                    if not (0 <= marks_float <= self.max_score):
+                        errors.append(f'Row {row_num}: Marks {marks} out of range (0-{self.max_score})')
                         invalid_count += 1
                         continue
-                except ValueError:
-                    errors.append(f'Row {row_num}: Invalid marks format: {row[self.subject_name]}')
+                except (ValueError, TypeError):
+                    errors.append(f'Row {row_num}: Invalid marks: {marks}')
                     invalid_count += 1
                     continue
             
@@ -145,45 +158,42 @@ class SingleSubjectUploadHandler:
             'invalid_count': invalid_count
         }
     
-    def _extract_data(self, df: pd.DataFrame) -> List[Dict]:
-        """Extract and clean data from DataFrame"""
-        data = []
+    def _extract_json_data(self, json_data: List[Dict]) -> List[Dict]:
+        """Extract and clean data from JSON"""
+        cleaned_data = []
         
-        for _, row in df.iterrows():
-            # Skip rows with missing student info
-            if pd.isna(row['admission_no']) or pd.isna(row['student_id']):
-                continue
-            
+        for student in json_data:
             # Normalize gender
             gender = None
-            if pd.notna(row['gender']):
-                gender_str = str(row['gender']).strip().lower()
+            if 'gender' in student and student['gender']:
+                gender_str = str(student['gender']).strip().lower()
                 if gender_str in ['m', 'male']:
                     gender = 'M'
                 elif gender_str in ['f', 'female']:
                     gender = 'F'
             
-            student_data = {
-                'admission_no': str(row['admission_no']).strip(),
-                'student_id': str(row['student_id']).strip(),
-                'full_name': str(row['full_name']).strip() if pd.notna(row['full_name']) else '',
+            # Normalize marks
+            marks = student.get('marks')
+            if marks is not None:
+                try:
+                    marks = float(marks)
+                except (ValueError, TypeError):
+                    marks = None
+            
+            cleaned_student = {
+                'admission_no': str(student.get('admission_no', '')).strip(),
+                'student_id': str(student.get('student_id', '')).strip(),
+                'full_name': str(student.get('full_name', '')).strip(),
                 'gender': gender,
-                'class': str(row['class']).strip() if 'class' in df.columns and pd.notna(row['class']) else '',
-                'stream': str(row['stream']).strip() if 'stream' in df.columns and pd.notna(row['stream']) else '',
-                'marks': None,
-                'remarks': str(row['Remarks']).strip() if 'Remarks' in df.columns and pd.notna(row['Remarks']) else ''
+                'class': str(student.get('class', '')).strip(),
+                'stream': str(student.get('stream', '')).strip(),
+                'marks': marks,
+                'remarks': str(student.get('remarks', '')).strip()
             }
             
-            # Extract marks if present
-            if pd.notna(row[self.subject_name]):
-                try:
-                    student_data['marks'] = float(row[self.subject_name])
-                except:
-                    student_data['marks'] = None
-            
-            data.append(student_data)
+            cleaned_data.append(cleaned_student)
         
-        return data
+        return cleaned_data
     
     def _calculate_grades(self, student_data: List[Dict]) -> List[Dict]:
         """Calculate grades using Tanzania NECTA system"""
@@ -321,18 +331,38 @@ class SingleSubjectUploadHandler:
             'summary_notes': notes
         }
     
-    def get_expected_template(self) -> Dict:
-        """Get expected template structure for this subject"""
+    def get_expected_structure(self) -> Dict:
+        """Get expected JSON structure"""
         return {
             'subject': self.subject_name,
             'max_score': self.max_score,
             'grading_rules': self.grading_rules,
-            'required_columns': self.expected_columns,
-            'instructions': f'Jaza alama za {self.subject_name} kwenye safu ya 7 pekee (baada ya gender)',
+            'expected_fields': self.expected_fields,
+            'sample_data': [
+                {
+                    'admission_no': 'ADM001',
+                    'student_id': 'STU001',
+                    'full_name': 'JOHN MWAMBA',
+                    'gender': 'M',
+                    'class': 'FORM 4',
+                    'stream': 'EAST',
+                    'marks': 85,
+                    'remarks': 'Excellent'
+                },
+                {
+                    'admission_no': 'ADM002',
+                    'student_id': 'STU002',
+                    'full_name': 'SARAH JUMANNE',
+                    'gender': 'F',
+                    'class': 'FORM 4',
+                    'stream': 'EAST',
+                    'marks': 78,
+                    'remarks': 'Very Good'
+                }
+            ],
             'validation_rules': {
                 'marks_range': f'0-{self.max_score}',
                 'gender_values': 'M/male, F/female',
-                'required_fields': ['admission_no', 'student_id', 'full_name', 'gender'],
-                'optional_fields': ['Remarks']
+                'required_fields': ['admission_no', 'student_id', 'full_name', 'gender', 'marks']
             }
         }
