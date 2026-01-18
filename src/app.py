@@ -32,10 +32,10 @@ def create_app():
     from routes import api_routes, extractor_routes, health_routes, template_routes
     
     # Register blueprints with unique prefixes to avoid conflicts
-    app.register_blueprint(api_routes, url_prefix='/api')
-    app.register_blueprint(extractor_routes, url_prefix='/extract')
-    app.register_blueprint(health_routes, url_prefix='/health')
-    app.register_blueprint(template_routes, url_prefix='/templates')
+    app.register_blueprint(api_routes)
+    app.register_blueprint(extractor_routes)
+    app.register_blueprint(health_routes)
+    app.register_blueprint(template_routes)
     
     # Register error handlers
     from routes.error_handlers import register_error_handlers
