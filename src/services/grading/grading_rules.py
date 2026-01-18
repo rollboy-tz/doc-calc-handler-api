@@ -1,6 +1,6 @@
 # services/grading/grading_rules.py
 """
-GRADING RULES - CLEAN VARIABLES
+GRADING RULES - WITH ALL REQUIRED FUNCTIONS
 """
 
 GRADING_SYSTEMS = {
@@ -15,7 +15,14 @@ GRADING_SYSTEMS = {
             {"grade": "C", "min": 41, "max": 60, "points": 3, "remark": "Good"},
             {"grade": "D", "min": 21, "max": 40, "points": 4, "remark": "Satisfactory"},
             {"grade": "F", "min": 0, "max": 20, "points": 5, "remark": "Fail"}
-        ]
+        ],
+        "division_ranges": {
+            "I": (7, 17),
+            "II": (18, 21),
+            "III": (22, 25),
+            "IV": (26, 35),
+            "0": (36, 45)
+        }
     },
     "nacte": {
         "name": "NACTE",
@@ -45,3 +52,46 @@ GRADING_SYSTEMS = {
         ]
     }
 }
+
+
+def get_grade_for_marks(system, marks):
+    """Get grade information for given marks in a system"""
+    if system not in GRADING_SYSTEMS:
+        system = "csee"
+    
+    try:
+        marks = float(marks)
+    except (ValueError, TypeError):
+        # Return default fail grade for invalid marks
+        return GRADING_SYSTEMS[system]["grades"][-1]
+    
+    for grade_info in GRADING_SYSTEMS[system]["grades"]:
+        if grade_info["min"] <= marks <= grade_info["max"]:
+            return grade_info
+    
+    # Default to lowest grade
+    return GRADING_SYSTEMS[system]["grades"][-1]
+
+
+def calculate_division(total_points, system="csee"):
+    """Calculate division for CSEE system"""
+    if system != "csee":
+        return None
+    
+    if total_points is None:
+        return None
+    
+    ranges = GRADING_SYSTEMS[system]["division_ranges"]
+    
+    if ranges["I"][0] <= total_points <= ranges["I"][1]:
+        return "I"
+    elif ranges["II"][0] <= total_points <= ranges["II"][1]:
+        return "II"
+    elif ranges["III"][0] <= total_points <= ranges["III"][1]:
+        return "III"
+    elif ranges["IV"][0] <= total_points <= ranges["IV"][1]:
+        return "IV"
+    elif total_points >= ranges["0"][0]:
+        return "0"
+    else:
+        return None
