@@ -30,16 +30,10 @@ def create_app():
         logger.warning("ALLOWED_ORIGINS not set - allowing all origins")
     
     # Import and register routes
-    from routes import api_routes, extractor_routes, health_routes
+    from routes import template_routes, api_routes, extractor_routes, health_routes
 
+        app.register_blueprint(template_routes)
     app.register_blueprint(api_routes)
-    app.register_blueprint(extractor_routes)
-    app.register_blueprint(health_routes)
-
-    # In create_app() function:
-    from routes import template_routes, extractor_routes, health_routes
-
-    app.register_blueprint(template_routes)
     app.register_blueprint(extractor_routes)
     app.register_blueprint(health_routes)
     
