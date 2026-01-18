@@ -1,17 +1,17 @@
-# services/generators/marksheet_generator.py
 """
-FULL MARK SHEET TEMPLATE GENERATOR
+FULL MARK SHEET TEMPLATE GENERATOR - PRODUCTION READY
 For all subjects in one sheet
 """
 import pandas as pd
 from io import BytesIO
+from openpyxl.styles import Font
+from openpyxl.utils import get_column_letter
 from .base_generator import BaseGenerator
-from openpyxl.utils import get_column_letter  # <-- ADD THIS
 
 class MarksheetGenerator(BaseGenerator):
     """Generate full marksheet template for all subjects"""
     
-    def __init__(self, class_name="FORM 4", stream="", subjects=None):
+    def __init__(self, class_name="FORM 4", stream="", subjects=None, students=None):
         self.class_name = class_name
         self.stream = stream
         self.subjects = subjects or [
@@ -19,35 +19,76 @@ class MarksheetGenerator(BaseGenerator):
             "PHYSICS", "CHEMISTRY", "BIOLOGY",
             "GEOGRAPHY", "HISTORY", "CIVICS", "COMMERCE"
         ]
+        self.students = students or []  # List of student dictionaries
     
-    def generate(self, student_count=10):
-        """Generate Excel template"""
-        # Create sample students
-        students = []
-        for i in range(1, student_count + 1):
-            students.append({
-                'admission_no': f'ADM2024{i:03d}',
-                'student_id': f'STU24{i:03d}',
-                'full_name': f'STUDENT {i}',
-                'gender': 'M' if i % 2 == 0 else 'F',
-                'class': self.class_name,
-                'stream': self.stream
-            })
+    def generate(self):
+        """Generate Excel template with actual student names"""
+        if not self.students:
+            return self._generate_sample_template()
         
-        # Create DataFrame
-        df = pd.DataFrame(students)
+        # Create DataFrame from actual students
+        df = pd.DataFrame(self.students)
+        
+        # Ensure required columns exist
+        required_columns = ['admission_no', 'student_id', 'full_name', 'gender']
+        for col in required_columns:
+            if col not in df.columns:
+                df[col] = ''
+        
+        # Add class and stream columns if not present
+        if 'class' not in df.columns:
+            df['class'] = self.class_name
+        if 'stream' not in df.columns:
+            df['stream'] = self.stream
         
         # Add empty subject columns
         for subject in self.subjects:
-            df[subject] = ''
+            if subject not in df.columns:
+                df[subject] = ''
         
-        # Add remarks column
-        df['remarks'] = ''
+        # Add remarks column if not present
+        if 'remarks' not in df.columns:
+            df['remarks'] = ''
         
-        # Create Excel file
+        # Reorder columns
+        base_columns = ['admission_no', 'student_id', 'full_name', 'gender', 'class', 'stream']
+        final_columns = base_columns + self.subjects + ['remarks']
+        
+        # Keep only columns that exist
+        available_columns = [col for col in final_columns if col in df.columns]
+        df = df[available_columns]
+        
+        return self._create_excel_file(df)
+    
+    def _generate_sample_template(self):
+        """Generate template with sample data if no students provided"""
+        # Create DataFrame structure
+        data = {
+            'admission_no': ['ADM001', 'ADM002', 'ADM003'],
+            'student_id': ['STU001', 'STU002', 'STU003'],
+            'full_name': ['JOHN DOE', 'JANE SMITH', 'MIKE JOHNSON'],
+            'gender': ['M', 'F', 'M'],
+            'class': [self.class_name, self.class_name, self.class_name],
+            'stream': [self.stream, self.stream, self.stream]
+        }
+        
+        # Add subject columns
+        for subject in self.subjects:
+            data[subject] = ['', '', '']
+        
+        # Add remarks
+        data['remarks'] = ['', '', '']
+        
+        df = pd.DataFrame(data)
+        return self._create_excel_file(df)
+    
+    def _create_excel_file(self, df):
+        """Create Excel file from DataFrame"""
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             sheet_name = f"{self.class_name}_{self.stream}" if self.stream else self.class_name
+            sheet_name = sheet_name[:31]  # Excel sheet name limit
+            
             df.to_excel(writer, sheet_name=sheet_name, index=False)
             
             # Apply formatting
@@ -68,12 +109,13 @@ class MarksheetGenerator(BaseGenerator):
             }
             
             # Subject columns (12 width each)
-            for i in range(len(self.subjects)):
-                col_letter = get_column_letter(7 + i)  # Start from column G
-                column_widths[col_letter] = 12
+            subject_start_col = 7  # Column G
+            for i, subject in enumerate(self.subjects):
+                col_letter = get_column_letter(subject_start_col + i)
+                column_widths[col_letter] = 15
             
             # Remarks column
-            remarks_col = get_column_letter(7 + len(self.subjects))
+            remarks_col = get_column_letter(subject_start_col + len(self.subjects))
             column_widths[remarks_col] = 25
             
             self._set_column_widths(worksheet, column_widths)
@@ -91,17 +133,17 @@ class MarksheetGenerator(BaseGenerator):
         instructions = [
             ["📘 FULL MARK SHEET TEMPLATE"],
             [""],
-            ["HOW TO USE:"],
-            ["1. DO NOT EDIT columns A-F (student information)"],
-            ["2. Fill marks in subject columns (G onwards)"],
-            ["3. Use numbers only (0-100)"],
-            ["4. Leave blank if student absent"],
-            ["5. Add remarks in last column if needed"],
+            ["JINSI YA KUTUMIA:"],
+            ["1. USIBADILI safu A-F (taarifa za mwanafunzi)"],
+            ["2. Jaza alama kwenye safu za masomo (G na kuendelea)"],
+            ["3. Tumia namba pekee (0-100)"],
+            ["4. Acha wazi kama mwanafunzi hayupo"],
+            ["5. Weka maoni kwenye safu ya mwisho ikiwa inahitajika"],
             [""],
-            ["SAVE AND UPLOAD:"],
-            ["1. Save the filled file"],
-            ["2. Upload to /api/extract/multi-subject"],
-            ["3. System will extract and process data"]
+            ["HIFADHI NA PEEKISHA:"],
+            ["1. Hifadhi faili iliyojazwa"],
+            ["2. Peekisha kwa /api/extract/multi-subject"],
+            ["3. Mfumo utachukua na kuchakua data"]
         ]
         
         for row_idx, instruction in enumerate(instructions, start=1):
@@ -116,6 +158,7 @@ class MarksheetGenerator(BaseGenerator):
             'class': self.class_name,
             'stream': self.stream,
             'subjects': self.subjects,
+            'student_count': len(self.students) if self.students else 3,
             'student_columns': ['admission_no', 'student_id', 'full_name', 'gender', 'class', 'stream'],
             'total_columns': 6 + len(self.subjects) + 1,
             'filename': f"Marksheet_{self.class_name}_{self.stream}.xlsx" if self.stream else f"Marksheet_{self.class_name}.xlsx"

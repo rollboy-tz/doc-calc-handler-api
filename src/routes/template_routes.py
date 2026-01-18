@@ -1,6 +1,5 @@
-# routes/template_routes.py
 """
-TEMPLATE GENERATION ROUTES
+TEMPLATE GENERATION ROUTES - UPDATED FOR PRODUCTION
 """
 from flask import Blueprint, request, jsonify, send_file
 import tempfile
@@ -20,16 +19,17 @@ def generate_full_template():
         class_name = data.get('class_name', 'FORM 4')
         stream = data.get('stream', '')
         subjects = data.get('subjects', [])
-        student_count = int(data.get('student_count', 10))
+        students = data.get('students', [])  # ACTUAL STUDENT DATA
         
         # Generate template
         generator = MarksheetGenerator(
             class_name=class_name,
             stream=stream,
-            subjects=subjects
+            subjects=subjects,
+            students=students  # PASS ACTUAL STUDENTS
         )
         
-        excel_data = generator.generate(student_count)
+        excel_data = generator.generate()
         
         # Save to temp file
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
@@ -59,16 +59,17 @@ def generate_subject_template():
         subject_name = data.get('subject_name', 'MATHEMATICS')
         class_name = data.get('class_name', 'FORM 4')
         stream = data.get('stream', '')
-        student_count = int(data.get('student_count', 10))
+        students = data.get('students', [])  # ACTUAL STUDENT DATA
         
         # Generate template
         generator = SubjectGenerator(
             subject_name=subject_name,
             class_name=class_name,
-            stream=stream
+            stream=stream,
+            students=students  # PASS ACTUAL STUDENTS
         )
         
-        excel_data = generator.generate(student_count)
+        excel_data = generator.generate()
         
         # Save to temp file
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
@@ -100,11 +101,13 @@ def get_template_info():
             class_name = data.get('class_name', 'FORM 4')
             stream = data.get('stream', '')
             subjects = data.get('subjects', [])
+            students = data.get('students', [])
             
             generator = MarksheetGenerator(
                 class_name=class_name,
                 stream=stream,
-                subjects=subjects
+                subjects=subjects,
+                students=students
             )
             info = generator.get_info()
             
@@ -112,11 +115,13 @@ def get_template_info():
             subject_name = data.get('subject_name', 'MATHEMATICS')
             class_name = data.get('class_name', 'FORM 4')
             stream = data.get('stream', '')
+            students = data.get('students', [])
             
             generator = SubjectGenerator(
                 subject_name=subject_name,
                 class_name=class_name,
-                stream=stream
+                stream=stream,
+                students=students
             )
             info = generator.get_info()
         

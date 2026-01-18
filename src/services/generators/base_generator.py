@@ -1,4 +1,3 @@
-# services/generators/base_generator.py
 """
 BASE GENERATOR - Common functionality for all generators
 """
