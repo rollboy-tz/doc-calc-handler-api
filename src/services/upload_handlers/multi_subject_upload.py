@@ -1,429 +1,201 @@
 # services/upload_handlers/multi_subject_upload.py
 """
-MULTI SUBJECT UPLOAD HANDLER - TANZANIA NECTA SYSTEM  
-Process uploaded Excel with marks for MULTIPLE subjects
-Returns clean data with gender analysis
+MULTI SUBJECT EXCEL EXTRACTOR
+Extract raw data from Excel - NO grade calculations
+Returns clean JSON for dashboard to edit/process
 """
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Set
-from ..calculations.grade_calculator import GradeCalculator
+from typing import Dict, List
+import logging
+
+logger = logging.getLogger(__name__)
 
 class MultiSubjectUploadHandler:
     """
-    Handle upload of Excel file with MULTIPLE subjects marks - Tanzania NECTA
-    
-    Expected Excel structure:
-    - Columns A-F: Student info (including gender)
-    - Columns G onward: Subject marks (one column per subject)
+    Extract data from multi-subject Excel file
+    Returns raw data for dashboard processing
     """
     
-    def __init__(self, subjects: List[str], grading_rules: str = 'CSEE'):
-        self.subjects = subjects
-        self.grading_rules = grading_rules  # 'CSEE' or 'PSLE'
-        self.calculator = GradeCalculator(grading_rules)
-        
-        # Base columns that should always be present
-        self.base_columns = ['admission_no', 'student_id', 'full_name', 'gender', 'class', 'stream']
+    def __init__(self):
+        # No grading rules needed - just extraction
+        pass
     
     def process_upload(self, excel_file_path: str) -> Dict:
         """
-        Process uploaded multi-subject Excel file
+        Extract raw data from Excel file
         
         Args:
             excel_file_path: Path to uploaded Excel file
             
         Returns:
-            Dictionary with processed data for Node.js
+            Dictionary with extracted raw data
         """
         try:
-            # 1. Read Excel file with header row 1 (skip title)
-            df = pd.read_excel(excel_file_path, header=None)
-
-            if len(df) > 0:
-                # Row 0 contains headers
-                df.columns = df.iloc[0]
-                # Remove the header row from data
-                df = df.iloc[1:].reset_index(drop=True)
-        
-
-            # 2. Detect subjects from file
-            detected_subjects = self._detect_subjects(df)
+            # 1. Read Excel file - ALWAYS use header=0 (row 1 is headers)
+            df = pd.read_excel(excel_file_path, header=0)
             
-            # 3. Validate file structure
-            validation = self._validate_structure(df, detected_subjects)
+            # 2. Clean column names (remove extra spaces, normalize)
+            df.columns = [self._clean_column_name(col) for col in df.columns]
+            
+            logger.info(f"📊 File loaded: {len(df)} rows, {len(df.columns)} columns")
+            logger.info(f"📋 Columns found: {df.columns.tolist()}")
+            
+            # 3. Validate basic structure
+            validation = self._validate_structure(df)
             if not validation['valid']:
                 return {
                     'success': False,
                     'error': 'Invalid file structure',
-                    'details': validation['errors'],
-                    'detected_subjects': detected_subjects
+                    'details': validation['errors']
                 }
             
-            # 4. Extract and clean data for each student
-            student_records = self._extract_student_records(df, detected_subjects)
+            # 4. Extract raw student data
+            student_records = self._extract_raw_data(df)
             
-            # 5. Calculate grades for each subject (Tanzania NECTA)
-            processed_records = self._calculate_all_grades(student_records, detected_subjects)
-            
-            # 6. Calculate student summaries and positions
-            final_results = self._calculate_summaries(processed_records, detected_subjects)
-            
-            # 7. Generate class-wide statistics with GENDER analysis
-            class_summary = self._generate_class_summary(final_results, detected_subjects)
-            
-            # 8. Return comprehensive data for Node.js
+            # 5. Return raw data for dashboard
             return {
                 'success': True,
-                'subjects_processed': detected_subjects,
-                'total_students': len(final_results),
-                'grading_rules': self.grading_rules,
-                'class_summary': class_summary,
-                'student_records': final_results,
-                'processing_stats': {
-                    'valid_students': len([s for s in final_results if s['valid']]),
-                    'invalid_students': len([s for s in final_results if not s['valid']]),
-                    'subjects_found': len(detected_subjects),
-                    'subjects_missing': list(set(self.subjects) - set(detected_subjects)) if self.subjects else []
-                }
+                'extraction_type': 'excel',
+                'student_count': len(student_records),
+                'subjects_found': self._get_subjects_from_data(df),
+                'raw_students': student_records,
+                'file_info': {
+                    'columns': df.columns.tolist(),
+                    'rows': len(df),
+                    'subjects_count': len(self._get_subjects_from_data(df))
+                },
+                'notes': [
+                    'Data extracted successfully',
+                    'No grade calculations performed',
+                    'Send this data to /api/process/multi-subject/json for processing'
+                ]
             }
             
         except Exception as e:
+            logger.error(f"Excel extraction failed: {str(e)}")
             return {
                 'success': False,
-                'error': f'Processing failed: {str(e)}',
-                'subjects_expected': self.subjects
+                'error': f'Extraction failed: {str(e)}'
             }
     
-    def _detect_subjects(self, df: pd.DataFrame) -> List[str]:
-        """Detect subject columns in the uploaded file"""
-        all_columns = [str(col).strip() for col in df.columns.tolist()]
+    def _clean_column_name(self, col_name) -> str:
+        """Clean and normalize column names"""
+        if not isinstance(col_name, str):
+            col_name = str(col_name)
         
-        # Subject columns are those not in base columns
-        base_set = set(self.base_columns)
-        subject_columns = [col for col in all_columns if col not in base_set and col.lower() != 'remarks']
+        # Clean up the name
+        cleaned = col_name.strip()
         
-        # If subjects were specified, filter to only those
-        if self.subjects:
-            # Match case-insensitive
-            available_subjects = []
-            for specified_subject in self.subjects:
-                for actual_col in subject_columns:
-                    if specified_subject.lower() in actual_col.lower() or actual_col.lower() in specified_subject.lower():
-                        available_subjects.append(actual_col)
-            subject_columns = available_subjects
+        # Remove "Unnamed: " prefixes
+        if cleaned.startswith('Unnamed:'):
+            return 'remarks' if 'remarks' in cleaned.lower() else 'extra_' + cleaned.split(':')[-1].strip()
         
-        return subject_columns
+        # Convert to lowercase and replace spaces
+        cleaned = cleaned.lower().replace(' ', '_').replace('-', '_')
+        
+        # Handle common variations
+        name_mapping = {
+            'adm_no': 'admission_no',
+            'student_no': 'student_id',
+            'name': 'full_name',
+            'sex': 'gender',
+            'class_name': 'class',
+            'stream_name': 'stream',
+            'comment': 'remarks'
+        }
+        
+        return name_mapping.get(cleaned, cleaned)
     
-    def _validate_structure(self, df: pd.DataFrame, subjects: List[str]) -> Dict:
-        """Validate Excel file structure"""
+    def _validate_structure(self, df: pd.DataFrame) -> Dict:
+        """Basic validation of Excel structure"""
         errors = []
         
-        # Check base columns (all are required)
-        for col in self.base_columns:
+        # Check for required columns
+        required_columns = ['admission_no', 'student_id', 'full_name']
+        for col in required_columns:
             if col not in df.columns:
-                errors.append(f'Missing required column: {col}')
+                errors.append(f'Missing column: {col}')
         
-        # Check gender values
-        if 'gender' in df.columns:
-            unique_genders = df['gender'].dropna().unique()
-            for gender in unique_genders:
-                gender_str = str(gender).strip().lower()
-                if gender_str not in ['m', 'f', 'male', 'female']:
-                    errors.append(f'Invalid gender value: {gender}')
-        
-        # Check if we have any subject columns
-        if not subjects:
-            errors.append('No subject columns found in file')
-        
-        # Validate each row
-        for idx, row in df.iterrows():
-            row_num = idx + 2
-            
-            # Check student info
-            if pd.isna(row.get('admission_no')) or pd.isna(row.get('student_id')) or pd.isna(row.get('full_name')):
-                errors.append(f'Row {row_num}: Missing admission_no, student_id, or full_name')
-                continue
-            
-            # Validate gender
-            if pd.notna(row.get('gender')):
-                gender = str(row['gender']).strip().lower()
-                if gender not in ['m', 'f', 'male', 'female']:
-                    errors.append(f'Row {row_num}: Invalid gender: {row["gender"]}')
-            
-            # Validate marks for each subject
-            for subject in subjects:
-                if subject in df.columns and pd.notna(row[subject]):
-                    try:
-                        mark = float(row[subject])
-                        if not (0 <= mark <= 100):  # Assuming 100 max for all subjects
-                            errors.append(f'Row {row_num}: {subject} marks {mark} out of range (0-100)')
-                    except ValueError:
-                        errors.append(f'Row {row_num}: {subject} invalid marks format')
+        # Check for at least one subject column
+        subject_columns = self._get_subjects_from_data(df)
+        if not subject_columns:
+            errors.append('No subject columns found')
         
         return {
             'valid': len(errors) == 0,
-            'errors': errors[:10],  # Limit to first 10 errors
-            'total_errors': len(errors)
+            'errors': errors
         }
     
-    def _extract_student_records(self, df: pd.DataFrame, subjects: List[str]) -> List[Dict]:
-        """Extract student records from DataFrame"""
-        records = []
+    def _get_subjects_from_data(self, df: pd.DataFrame) -> List[str]:
+        """Get subject columns from DataFrame"""
+        # Student info columns
+        student_columns = {
+            'admission_no', 'student_id', 'full_name', 
+            'gender', 'class', 'stream', 'remarks'
+        }
+        
+        # All columns that are NOT student info are subjects
+        subject_columns = []
+        for col in df.columns:
+            if col not in student_columns:
+                subject_columns.append(col)
+        
+        return subject_columns
+    
+    def _extract_raw_data(self, df: pd.DataFrame) -> List[Dict]:
+        """Extract raw student data from DataFrame"""
+        student_records = []
         
         for _, row in df.iterrows():
             # Skip rows with missing essential info
             if pd.isna(row.get('admission_no')) or pd.isna(row.get('student_id')):
                 continue
             
-            # Normalize gender
-            gender = None
-            if pd.notna(row.get('gender')):
-                gender_str = str(row['gender']).strip().lower()
-                if gender_str in ['m', 'male']:
-                    gender = 'M'
-                elif gender_str in ['f', 'female']:
-                    gender = 'F'
-            
-            record = {
-                'admission_no': str(row['admission_no']).strip(),
-                'student_id': str(row['student_id']).strip(),
-                'full_name': str(row.get('full_name', '')).strip(),
-                'gender': gender,
-                'class': str(row.get('class', '')).strip(),
-                'stream': str(row.get('stream', '')).strip(),
+            # Build student record
+            student = {
+                'admission_no': self._safe_str(row.get('admission_no')),
+                'student_id': self._safe_str(row.get('student_id')),
+                'full_name': self._safe_str(row.get('full_name', '')),
+                'gender': self._safe_gender(row.get('gender')),
+                'class': self._safe_str(row.get('class', '')),
+                'stream': self._safe_str(row.get('stream', '')),
                 'subjects': {},
-                'valid': True,
-                'errors': []
+                'remarks': self._safe_str(row.get('remarks', ''))
             }
             
-            # Extract marks for each subject
-            for subject in subjects:
+            # Add subject marks
+            subject_columns = self._get_subjects_from_data(df)
+            for subject in subject_columns:
                 if subject in df.columns:
-                    if pd.notna(row[subject]):
+                    mark = row[subject]
+                    if pd.notna(mark):
                         try:
-                            record['subjects'][subject] = {
-                                'mark': float(row[subject]),
-                                'grade': None,      # Will be calculated
-                                'remarks': None     # Will be calculated
-                            }
-                        except:
-                            record['subjects'][subject] = {'mark': None, 'error': 'Invalid format'}
-                            record['valid'] = False
-                            record['errors'].append(f'{subject}: Invalid marks format')
+                            student['subjects'][subject] = float(mark)
+                        except (ValueError, TypeError):
+                            student['subjects'][subject] = None
                     else:
-                        record['subjects'][subject] = {'mark': None, 'status': 'ABSENT'}
+                        student['subjects'][subject] = None
             
-            records.append(record)
+            student_records.append(student)
         
-        return records
+        return student_records
     
-    def _calculate_all_grades(self, records: List[Dict], subjects: List[str]) -> List[Dict]:
-        """Calculate grades for all subjects using Tanzania NECTA system"""
-        for record in records:
-            for subject, data in record['subjects'].items():
-                if data.get('mark') is not None:
-                    grade_info = self.calculator.calculate_grade(data['mark'])
-                    record['subjects'][subject]['grade'] = grade_info['grade']
-                    record['subjects'][subject]['remarks'] = grade_info['remarks']
-                    record['subjects'][subject]['grade_points'] = grade_info['points']  # TZ points (1-5)
-        
-        return records
+    def _safe_str(self, value):
+        """Safely convert value to string"""
+        if pd.isna(value):
+            return ''
+        return str(value).strip()
     
-    def _calculate_summaries(self, records: List[Dict], subjects: List[str]) -> List[Dict]:
-        """Calculate student summaries (totals, averages, positions)"""
-        for record in records:
-            # Get all valid marks
-            marks = []
-            grades = []
-            present_subjects = []
-            
-            for subject, data in record['subjects'].items():
-                if data.get('mark') is not None:
-                    marks.append(data['mark'])
-                    grades.append(data.get('grade', ''))
-                    present_subjects.append(subject)
-            
-            # Count passing grades (A, B, C, D are passes in TZ)
-            passing_grades = ['A', 'B', 'C', 'D']
-            passed_subjects = [grade for grade in grades if grade in passing_grades]
-            
-            if marks:
-                record['summary'] = {
-                    'total_marks': sum(marks),
-                    'average_mark': round(sum(marks) / len(marks), 2),
-                    'subjects_count': len(subjects),
-                    'subjects_present': len(present_subjects),
-                    'subjects_absent': len(subjects) - len(present_subjects),
-                    'subjects_passed': len(passed_subjects),
-                    'subjects_failed': len(present_subjects) - len(passed_subjects),
-                    'pass_rate': round((len(passed_subjects) / len(present_subjects)) * 100, 1) if present_subjects else 0,
-                    'grades': grades
-                }
-            else:
-                record['summary'] = {
-                    'total_marks': 0,
-                    'average_mark': 0,
-                    'subjects_count': len(subjects),
-                    'subjects_present': 0,
-                    'subjects_absent': len(subjects),
-                    'subjects_passed': 0,
-                    'subjects_failed': 0,
-                    'pass_rate': 0,
-                    'grades': []
-                }
+    def _safe_gender(self, value):
+        """Safely convert gender to M/F"""
+        if pd.isna(value):
+            return 'M'
         
-        # Calculate class positions based on total marks
-        valid_records = [r for r in records if r['summary']['total_marks'] > 0]
-        valid_records.sort(key=lambda x: x['summary']['total_marks'], reverse=True)
-        
-        # Assign positions with tie handling
-        current_position = 1
-        prev_total = None
-        skip = 0
-        
-        for record in valid_records:
-            if prev_total is not None and record['summary']['total_marks'] < prev_total:
-                current_position += 1 + skip
-                skip = 0
-            elif prev_total is not None and record['summary']['total_marks'] == prev_total:
-                skip += 1
-            
-            record['summary']['class_position'] = current_position
-            prev_total = record['summary']['total_marks']
-        
-        # For records with no marks
-        for record in records:
-            if 'class_position' not in record['summary']:
-                record['summary']['class_position'] = None
-        
-        return records
-    
-    def _generate_class_summary(self, records: List[Dict], subjects: List[str]) -> Dict:
-        """Generate class-wide statistics with GENDER analysis"""
-        # Gender breakdown
-        male_students = [r for r in records if r.get('gender') == 'M']
-        female_students = [r for r in records if r.get('gender') == 'F']
-        unknown_gender = len(records) - len(male_students) - len(female_students)
-        
-        # Subject-wise statistics
-        subject_stats = {}
-        for subject in subjects:
-            marks = []
-            male_marks = []
-            female_marks = []
-            
-            for record in records:
-                if subject in record['subjects'] and record['subjects'][subject].get('mark') is not None:
-                    mark = record['subjects'][subject]['mark']
-                    marks.append(mark)
-                    
-                    # Separate by gender
-                    if record.get('gender') == 'M':
-                        male_marks.append(mark)
-                    elif record.get('gender') == 'F':
-                        female_marks.append(mark)
-            
-            if marks:
-                # Grade distribution for this subject
-                grades = [r['subjects'][subject].get('grade', 'ABSENT') for r in records if subject in r['subjects']]
-                grade_dist = {}
-                for grade in ['A', 'B', 'C', 'D', 'E', 'ABSENT']:
-                    count = grades.count(grade)
-                    if count > 0:
-                        grade_dist[grade] = count
-                
-                subject_stats[subject] = {
-                    'average': round(np.mean(marks), 2),
-                    'highest': max(marks) if marks else 0,
-                    'lowest': min(marks) if marks else 0,
-                    'students_with_marks': len(marks),
-                    'students_absent': len(records) - len(marks),
-                    'grade_distribution': grade_dist,
-                    'gender_analysis': {
-                        'male_average': round(np.mean(male_marks), 2) if male_marks else 0,
-                        'female_average': round(np.mean(female_marks), 2) if female_marks else 0,
-                        'male_count': len(male_marks),
-                        'female_count': len(female_marks)
-                    }
-                }
-        
-        # Overall class statistics
-        total_marks = [r['summary']['total_marks'] for r in records if r['summary']['total_marks'] > 0]
-        male_totals = [r['summary']['total_marks'] for r in male_students if r['summary']['total_marks'] > 0]
-        female_totals = [r['summary']['total_marks'] for r in female_students if r['summary']['total_marks'] > 0]
-        
-        # Pass rate by gender
-        male_passed = len([r for r in male_students if r['summary']['subjects_passed'] > 0])
-        female_passed = len([r for r in female_students if r['summary']['subjects_passed'] > 0])
-        
-        return {
-            'subject_statistics': subject_stats,
-            'class_average': round(np.mean(total_marks), 2) if total_marks else 0,
-            'class_highest_total': max(total_marks) if total_marks else 0,
-            'class_lowest_total': min(total_marks) if total_marks else 0,
-            'gender_breakdown': {
-                'male': {
-                    'total': len(male_students),
-                    'percentage': round((len(male_students) / len(records)) * 100, 1) if records else 0,
-                    'average_total': round(np.mean(male_totals), 2) if male_totals else 0,
-                    'passed': male_passed,
-                    'pass_rate': round((male_passed / len(male_students)) * 100, 1) if male_students else 0
-                },
-                'female': {
-                    'total': len(female_students),
-                    'percentage': round((len(female_students) / len(records)) * 100, 1) if records else 0,
-                    'average_total': round(np.mean(female_totals), 2) if female_totals else 0,
-                    'passed': female_passed,
-                    'pass_rate': round((female_passed / len(female_students)) * 100, 1) if female_students else 0
-                },
-                'unknown': unknown_gender
-            },
-            'total_students': len(records),
-            'students_with_complete_marks': len(total_marks),
-            'grading_rules': self.grading_rules,
-            'summary_notes': self._generate_summary_notes(records, subject_stats, male_students, female_students)
-        }
-    
-    def _generate_summary_notes(self, records, subject_stats, male_students, female_students):
-        """Generate summary notes in Swahili"""
-        notes = [
-            f"Jumla ya wanafunzi: {len(records)}",
-            f"Wavulana: {len(male_students)}",
-            f"Wasichana: {len(female_students)}"
-        ]
-        
-        # Subject performance highlights
-        for subject, stats in subject_stats.items():
-            if stats['students_with_marks'] > 0:
-                best_subject = max(subject_stats.items(), key=lambda x: x[1]['average'])[0] if subject_stats else ""
-                worst_subject = min(subject_stats.items(), key=lambda x: x[1]['average'])[0] if subject_stats else ""
-                
-                notes.append(f"Somo bora: {best_subject} (wastani: {subject_stats[best_subject]['average']}%)")
-                notes.append(f"Somo dhaifu: {worst_subject} (wastani: {subject_stats[worst_subject]['average']}%)")
-                break
-        
-        # Gender performance comparison
-        if male_students and female_students:
-            male_avg = np.mean([s['summary']['average_mark'] for s in male_students if s['summary']['average_mark'] > 0])
-            female_avg = np.mean([s['summary']['average_mark'] for s in female_students if s['summary']['average_mark'] > 0])
-            
-            notes.append(f"Wastani wa wavulana: {round(male_avg, 1)}%")
-            notes.append(f"Wastani wa wasichana: {round(female_avg, 1)}%")
-        
-        return notes
-    
-    def get_expected_template(self) -> Dict:
-        """Get expected template structure for multiple subjects"""
-        return {
-            'required_base_columns': self.base_columns,
-            'subject_columns': self.subjects,
-            'grading_rules': self.grading_rules,
-            'instructions': 'Jaza alama katika safu za masomo pekee. Usihariri taarifa za mwanafunzi.',
-            'validation_rules': {
-                'marks_range': '0-100 kwa masomo yote',
-                'gender_values': 'M/male, F/female',
-                'required_fields': self.base_columns,
-                'optional_fields': ['Remarks']
-            }
-        }
+        gender_str = str(value).strip().upper()
+        if gender_str in ['M', 'MALE']:
+            return 'M'
+        elif gender_str in ['F', 'FEMALE']:
+            return 'F'
+        else:
+            return 'M'  # Default
