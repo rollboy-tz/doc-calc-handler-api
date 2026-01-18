@@ -6,7 +6,7 @@ Extract raw data from single subject Excel
 
 class SingleSubjectUploadHandler:
     
-    def process_upload(self, excel_file_path: str) -> Dict:
+    def process_upload(self, excel_file_path: str) -> dict:
         try:
             # Read with header=0
             df = pd.read_excel(excel_file_path, header=0)
