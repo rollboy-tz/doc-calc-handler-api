@@ -32,6 +32,7 @@ def create_app():
     from routes import api_routes, extractor_routes, health_routes, template_routes
     # app.py - Add this import and registration
     from routes.grading_routes import grading_routes
+    from routes.pdf_routes import pdf_routes
 
 # Inside create_app() function, after other blueprint registrations:
 
@@ -42,6 +43,8 @@ def create_app():
     app.register_blueprint(health_routes)
     app.register_blueprint(template_routes)
     app.register_blueprint(grading_routes)
+    app.register_blueprint(pdf_routes)
+
     
     # Register error handlers
     from routes.error_handlers import register_error_handlers

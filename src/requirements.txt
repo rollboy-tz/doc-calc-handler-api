@@ -9,8 +9,8 @@ numpy==1.26.2
 openpyxl==3.1.2
 
 # For PDF generation
-# reportlab>=4.0.0
-# PyPDF2>=3.0.0
+WeasyPrint==61.0
+Jinja2==3.1.2
 
 # Environment
 python-dotenv>=1.0.0
