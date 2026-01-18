@@ -4,7 +4,7 @@ MULTI SUBJECT EXTRACTOR
 Extract data from multi-subject Excel files
 """
 import pandas as pd
-from typing import Dict, List
+from typing import Dict, List, Any
 from .base_extractor import BaseExtractor
 
 class MultiSubjectExtractor(BaseExtractor):
