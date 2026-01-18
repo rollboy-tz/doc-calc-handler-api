@@ -6,6 +6,7 @@ For all subjects in one sheet
 import pandas as pd
 from io import BytesIO
 from .base_generator import BaseGenerator
+from openpyxl.utils import get_column_letter  # <-- ADD THIS
 
 class MarksheetGenerator(BaseGenerator):
     """Generate full marksheet template for all subjects"""
