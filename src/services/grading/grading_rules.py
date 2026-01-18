@@ -1,11 +1,12 @@
 # services/grading/grading_rules.py
 """
-GRADING RULES - WITH ALL REQUIRED FUNCTIONS
+GRADING RULES - WHOLE NUMBERS ONLY
 """
 
 GRADING_SYSTEMS = {
     "csee": {
         "name": "CSEE",
+        "scale": 100,
         "division": True,
         "points": True,
         "gpa": False,
@@ -26,72 +27,74 @@ GRADING_SYSTEMS = {
     },
     "nacte": {
         "name": "NACTE",
+        "scale": 100,
         "division": False,
         "points": True,
         "gpa": True,
         "grades": [
-            {"grade": "A", "min": 75, "max": 100, "points": 4.0, "remark": "Excellent"},
-            {"grade": "B+", "min": 70, "max": 74, "points": 3.5, "remark": "Very Good"},
-            {"grade": "B", "min": 65, "max": 69, "points": 3.0, "remark": "Good"},
-            {"grade": "C", "min": 60, "max": 64, "points": 2.5, "remark": "Above Average"},
-            {"grade": "D", "min": 50, "max": 59, "points": 2.0, "remark": "Average"},
-            {"grade": "F", "min": 0, "max": 49, "points": 0.0, "remark": "Fail"}
+            {"grade": "A", "min": 75, "max": 100, "points": 4, "remark": "Excellent"},
+            {"grade": "B+", "min": 70, "max": 74, "points": 3, "remark": "Very Good"},
+            {"grade": "B", "min": 65, "max": 69, "points": 3, "remark": "Good"},
+            {"grade": "C", "min": 60, "max": 64, "points": 2, "remark": "Above Average"},
+            {"grade": "D", "min": 50, "max": 59, "points": 2, "remark": "Average"},
+            {"grade": "F", "min": 0, "max": 49, "points": 0, "remark": "Fail"}
         ]
     },
     "plse": {
         "name": "PLSE",
+        "scale": 50,
         "division": False,
         "points": False,
         "gpa": False,
         "grades": [
-            {"grade": "A", "min": 80, "max": 100, "remark": "Excellent"},
-            {"grade": "B", "min": 60, "max": 79, "remark": "Very Good"},
-            {"grade": "C", "min": 40, "max": 59, "remark": "Good"},
-            {"grade": "D", "min": 20, "max": 39, "remark": "Satisfactory"},
-            {"grade": "E", "min": 0, "max": 19, "remark": "Weak"}
+            {"grade": "A", "min": 40, "max": 50, "remark": "Excellent"},
+            {"grade": "B", "min": 30, "max": 39, "remark": "Very Good"},
+            {"grade": "C", "min": 20, "max": 29, "remark": "Good"},
+            {"grade": "D", "min": 10, "max": 19, "remark": "Satisfactory"},
+            {"grade": "E", "min": 0, "max": 9, "remark": "Weak"}
         ]
     }
 }
 
 
 def get_grade_for_marks(system, marks):
-    """Get grade information for given marks in a system"""
+    """Get grade - whole numbers only"""
     if system not in GRADING_SYSTEMS:
         system = "csee"
     
     try:
-        marks = float(marks)
-    except (ValueError, TypeError):
-        # Return default fail grade for invalid marks
+        marks = int(float(marks))  # Convert to whole number
+    except:
         return GRADING_SYSTEMS[system]["grades"][-1]
     
-    for grade_info in GRADING_SYSTEMS[system]["grades"]:
-        if grade_info["min"] <= marks <= grade_info["max"]:
-            return grade_info
+    # Handle PLSE percentages
+    if system == "plse" and 50 < marks <= 100:
+        marks = int((marks / 100) * 50)
     
-    # Default to lowest grade
+    for grade in GRADING_SYSTEMS[system]["grades"]:
+        if grade["min"] <= marks <= grade["max"]:
+            return grade
+    
     return GRADING_SYSTEMS[system]["grades"][-1]
 
 
-def calculate_division(total_points, system="csee"):
-    """Calculate division for CSEE system"""
-    if system != "csee":
+def calculate_division(points, system="csee"):
+    """Calculate division - whole numbers only"""
+    if system != "csee" or points is None:
         return None
     
-    if total_points is None:
-        return None
-    
+    points = int(points)
     ranges = GRADING_SYSTEMS[system]["division_ranges"]
     
-    if ranges["I"][0] <= total_points <= ranges["I"][1]:
+    if ranges["I"][0] <= points <= ranges["I"][1]:
         return "I"
-    elif ranges["II"][0] <= total_points <= ranges["II"][1]:
+    elif ranges["II"][0] <= points <= ranges["II"][1]:
         return "II"
-    elif ranges["III"][0] <= total_points <= ranges["III"][1]:
+    elif ranges["III"][0] <= points <= ranges["III"][1]:
         return "III"
-    elif ranges["IV"][0] <= total_points <= ranges["IV"][1]:
+    elif ranges["IV"][0] <= points <= ranges["IV"][1]:
         return "IV"
-    elif total_points >= ranges["0"][0]:
+    elif points >= ranges["0"][0]:
         return "0"
-    else:
-        return None
+    
+    return None

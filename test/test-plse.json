@@ -1,0 +1,833 @@
+{
+    "analytics": {
+        "class": {
+            "class_id": "CLASS_FORM4_SCIENCE_2024",
+            "exam_id": "EXAM_2024_TERM1_SCIENCE",
+            "gender": {
+                "F": {
+                    "average": 83.62,
+                    "count": 2,
+                    "percentage": 40.0
+                },
+                "M": {
+                    "average": 54.83,
+                    "count": 3,
+                    "percentage": 60.0
+                }
+            },
+            "grades": {
+                "counts": {
+                    "A": 2,
+                    "B": 1,
+                    "C": 2
+                },
+                "percentages": {
+                    "A": 40.0,
+                    "B": 20.0,
+                    "C": 40.0
+                }
+            },
+            "overview": {
+                "average": 66.35,
+                "range": {
+                    "high": 87.0,
+                    "low": 40.0
+                },
+                "students": 5,
+                "subjects": 8
+            }
+        },
+        "subjects": {
+            "biology": {
+                "attendance": {
+                    "attended": 5,
+                    "rate": 100.0,
+                    "total": 5
+                },
+                "gender": {
+                    "averages": {
+                        "F": 86.0,
+                        "M": 58.0
+                    },
+                    "counts": {
+                        "F": 2,
+                        "M": 3
+                    }
+                },
+                "grades": {
+                    "counts": {
+                        "A": 2,
+                        "B": 2,
+                        "D": 1
+                    },
+                    "percentages": {
+                        "A": 40.0,
+                        "B": 40.0,
+                        "D": 20.0
+                    }
+                },
+                "performance": {
+                    "average": 69.2,
+                    "high": 90.0,
+                    "low": 39.0,
+                    "pass_rate": 100.0
+                }
+            },
+            "chemistry": {
+                "attendance": {
+                    "attended": 5,
+                    "rate": 100.0,
+                    "total": 5
+                },
+                "gender": {
+                    "averages": {
+                        "F": 83.0,
+                        "M": 53.67
+                    },
+                    "counts": {
+                        "F": 2,
+                        "M": 3
+                    }
+                },
+                "grades": {
+                    "counts": {
+                        "A": 1,
+                        "B": 2,
+                        "C": 2
+                    },
+                    "percentages": {
+                        "A": 20.0,
+                        "B": 40.0,
+                        "C": 40.0
+                    }
+                },
+                "performance": {
+                    "average": 65.4,
+                    "high": 87.0,
+                    "low": 41.0,
+                    "pass_rate": 100.0
+                }
+            },
+            "english": {
+                "attendance": {
+                    "attended": 5,
+                    "rate": 100.0,
+                    "total": 5
+                },
+                "gender": {
+                    "averages": {
+                        "F": 86.5,
+                        "M": 59.33
+                    },
+                    "counts": {
+                        "F": 2,
+                        "M": 3
+                    }
+                },
+                "grades": {
+                    "counts": {
+                        "A": 2,
+                        "B": 2,
+                        "D": 1
+                    },
+                    "percentages": {
+                        "A": 40.0,
+                        "B": 40.0,
+                        "D": 20.0
+                    }
+                },
+                "performance": {
+                    "average": 70.2,
+                    "high": 88.0,
+                    "low": 38.0,
+                    "pass_rate": 100.0
+                }
+            },
+            "geography": {
+                "attendance": {
+                    "attended": 5,
+                    "rate": 100.0,
+                    "total": 5
+                },
+                "gender": {
+                    "averages": {
+                        "F": 80.0,
+                        "M": 56.0
+                    },
+                    "counts": {
+                        "F": 2,
+                        "M": 3
+                    }
+                },
+                "grades": {
+                    "counts": {
+                        "A": 1,
+                        "B": 2,
+                        "C": 2
+                    },
+                    "percentages": {
+                        "A": 20.0,
+                        "B": 40.0,
+                        "C": 40.0
+                    }
+                },
+                "performance": {
+                    "average": 65.6,
+                    "high": 84.0,
+                    "low": 48.0,
+                    "pass_rate": 100.0
+                }
+            },
+            "history": {
+                "attendance": {
+                    "attended": 5,
+                    "rate": 100.0,
+                    "total": 5
+                },
+                "gender": {
+                    "averages": {
+                        "F": 74.0,
+                        "M": 43.33
+                    },
+                    "counts": {
+                        "F": 2,
+                        "M": 3
+                    }
+                },
+                "grades": {
+                    "counts": {
+                        "B": 2,
+                        "C": 2,
+                        "D": 1
+                    },
+                    "percentages": {
+                        "B": 40.0,
+                        "C": 40.0,
+                        "D": 20.0
+                    }
+                },
+                "performance": {
+                    "average": 55.6,
+                    "high": 79.0,
+                    "low": 32.0,
+                    "pass_rate": 100.0
+                }
+            },
+            "kiswahili": {
+                "attendance": {
+                    "attended": 5,
+                    "rate": 100.0,
+                    "total": 5
+                },
+                "gender": {
+                    "averages": {
+                        "F": 89.5,
+                        "M": 54.0
+                    },
+                    "counts": {
+                        "F": 2,
+                        "M": 3
+                    }
+                },
+                "grades": {
+                    "counts": {
+                        "A": 2,
+                        "B": 1,
+                        "C": 2
+                    },
+                    "percentages": {
+                        "A": 40.0,
+                        "B": 20.0,
+                        "C": 40.0
+                    }
+                },
+                "performance": {
+                    "average": 68.2,
+                    "high": 91.0,
+                    "low": 42.0,
+                    "pass_rate": 100.0
+                }
+            },
+            "mathematics": {
+                "attendance": {
+                    "attended": 5,
+                    "rate": 100.0,
+                    "total": 5
+                },
+                "gender": {
+                    "averages": {
+                        "F": 81.5,
+                        "M": 62.67
+                    },
+                    "counts": {
+                        "F": 2,
+                        "M": 3
+                    }
+                },
+                "grades": {
+                    "counts": {
+                        "A": 2,
+                        "B": 1,
+                        "C": 2
+                    },
+                    "percentages": {
+                        "A": 40.0,
+                        "B": 20.0,
+                        "C": 40.0
+                    }
+                },
+                "performance": {
+                    "average": 70.2,
+                    "high": 91.0,
+                    "low": 45.0,
+                    "pass_rate": 100.0
+                }
+            },
+            "physics": {
+                "attendance": {
+                    "attended": 5,
+                    "rate": 100.0,
+                    "total": 5
+                },
+                "gender": {
+                    "averages": {
+                        "F": 88.5,
+                        "M": 51.67
+                    },
+                    "counts": {
+                        "F": 2,
+                        "M": 3
+                    }
+                },
+                "grades": {
+                    "counts": {
+                        "A": 2,
+                        "B": 1,
+                        "C": 1,
+                        "D": 1
+                    },
+                    "percentages": {
+                        "A": 40.0,
+                        "B": 20.0,
+                        "C": 20.0,
+                        "D": 20.0
+                    }
+                },
+                "performance": {
+                    "average": 66.4,
+                    "high": 92.0,
+                    "low": 35.0,
+                    "pass_rate": 100.0
+                }
+            }
+        }
+    },
+    "metadata": {
+        "class_id": "CLASS_FORM4_SCIENCE_2024",
+        "exam_id": "EXAM_2024_TERM1_SCIENCE",
+        "processed": "2026-01-18T18:07:24.683332",
+        "rule": "plse",
+        "stream_id": "STREAM_SCIENCE_A",
+        "students": 5,
+        "subject_ids": {
+            "biology": "SUBJ_BIO_006",
+            "chemistry": "SUBJ_CHEM_005",
+            "english": "SUBJ_ENG_002",
+            "geography": "SUBJ_GEO_007",
+            "history": "SUBJ_HIS_008",
+            "kiswahili": "SUBJ_KIS_003",
+            "mathematics": "SUBJ_MATH_001",
+            "physics": "SUBJ_PHY_004"
+        },
+        "subject_list": [
+            "mathematics",
+            "english",
+            "kiswahili",
+            "physics",
+            "chemistry",
+            "biology",
+            "geography",
+            "history"
+        ],
+        "subjects": 8,
+        "system_name": "PLSE"
+    },
+    "students": [
+        {
+            "student": {
+                "admission": "ADM2024004",
+                "gender": "F",
+                "id": "STU_2024_004",
+                "name": "FATMA HASSAN"
+            },
+            "subjects": {
+                "biology": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 90.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Excellent",
+                    "subject_rank": 1
+                },
+                "chemistry": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 87.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Excellent",
+                    "subject_rank": 1
+                },
+                "english": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 85.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Excellent",
+                    "subject_rank": 2
+                },
+                "geography": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 84.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Excellent",
+                    "subject_rank": 1
+                },
+                "history": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 79.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 1
+                },
+                "kiswahili": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 88.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Excellent",
+                    "subject_rank": 2
+                },
+                "mathematics": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 91.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Excellent",
+                    "subject_rank": 1
+                },
+                "physics": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 92.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Excellent",
+                    "subject_rank": 1
+                }
+            },
+            "summary": {
+                "average": 87.0,
+                "division": null,
+                "grade": "A",
+                "points": 0,
+                "rank": 1,
+                "remark": "Excellent",
+                "status": "PASS",
+                "subjects_attended": 8,
+                "subjects_passed": 8,
+                "subjects_total": 8,
+                "total": 696.0
+            }
+        },
+        {
+            "student": {
+                "admission": "ADM2024002",
+                "gender": "F",
+                "id": "STU_2024_002",
+                "name": "MARY JUMANNE"
+            },
+            "subjects": {
+                "biology": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 82.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Excellent",
+                    "subject_rank": 2
+                },
+                "chemistry": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 79.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 2
+                },
+                "english": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 88.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Excellent",
+                    "subject_rank": 1
+                },
+                "geography": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 76.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 2
+                },
+                "history": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 69.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 2
+                },
+                "kiswahili": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 91.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Excellent",
+                    "subject_rank": 1
+                },
+                "mathematics": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 72.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 3
+                },
+                "physics": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 85.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Excellent",
+                    "subject_rank": 2
+                }
+            },
+            "summary": {
+                "average": 80.25,
+                "division": null,
+                "grade": "A",
+                "points": 0,
+                "rank": 2,
+                "remark": "Excellent",
+                "status": "PASS",
+                "subjects_attended": 8,
+                "subjects_passed": 8,
+                "subjects_total": 8,
+                "total": 642.0
+            }
+        },
+        {
+            "student": {
+                "admission": "ADM2024001",
+                "gender": "M",
+                "id": "STU_2024_001",
+                "name": "JOHN MWALIMU"
+            },
+            "subjects": {
+                "biology": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 74.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 3
+                },
+                "chemistry": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 68.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 3
+                },
+                "english": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 78.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 3
+                },
+                "geography": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 61.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 3
+                },
+                "history": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 55.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Good",
+                    "subject_rank": 3
+                },
+                "kiswahili": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 65.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 3
+                },
+                "mathematics": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 85.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Excellent",
+                    "subject_rank": 2
+                },
+                "physics": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 72.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 3
+                }
+            },
+            "summary": {
+                "average": 69.75,
+                "division": null,
+                "grade": "B",
+                "points": 0,
+                "rank": 3,
+                "remark": "Very Good",
+                "status": "PASS",
+                "subjects_attended": 8,
+                "subjects_passed": 8,
+                "subjects_total": 8,
+                "total": 558.0
+            }
+        },
+        {
+            "student": {
+                "admission": "ADM2024003",
+                "gender": "M",
+                "id": "STU_2024_003",
+                "name": "AHMED ALI"
+            },
+            "subjects": {
+                "biology": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 61.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 4
+                },
+                "chemistry": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 52.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Good",
+                    "subject_rank": 4
+                },
+                "english": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 62.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Very Good",
+                    "subject_rank": 4
+                },
+                "geography": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 59.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Good",
+                    "subject_rank": 4
+                },
+                "history": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 43.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Good",
+                    "subject_rank": 4
+                },
+                "kiswahili": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 55.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Good",
+                    "subject_rank": 4
+                },
+                "mathematics": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 58.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Good",
+                    "subject_rank": 4
+                },
+                "physics": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 48.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Good",
+                    "subject_rank": 4
+                }
+            },
+            "summary": {
+                "average": 54.75,
+                "division": null,
+                "grade": "C",
+                "points": 0,
+                "rank": 4,
+                "remark": "Good",
+                "status": "PASS",
+                "subjects_attended": 8,
+                "subjects_passed": 8,
+                "subjects_total": 8,
+                "total": 438.0
+            }
+        },
+        {
+            "student": {
+                "admission": "ADM2024005",
+                "gender": "M",
+                "id": "STU_2024_005",
+                "name": "PETER KIMANI"
+            },
+            "subjects": {
+                "biology": {
+                    "attended": true,
+                    "grade": "D",
+                    "marks": 39.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Satisfactory",
+                    "subject_rank": 5
+                },
+                "chemistry": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 41.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Good",
+                    "subject_rank": 5
+                },
+                "english": {
+                    "attended": true,
+                    "grade": "D",
+                    "marks": 38.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Satisfactory",
+                    "subject_rank": 5
+                },
+                "geography": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 48.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Good",
+                    "subject_rank": 5
+                },
+                "history": {
+                    "attended": true,
+                    "grade": "D",
+                    "marks": 32.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Satisfactory",
+                    "subject_rank": 5
+                },
+                "kiswahili": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 42.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Good",
+                    "subject_rank": 5
+                },
+                "mathematics": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 45.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Good",
+                    "subject_rank": 5
+                },
+                "physics": {
+                    "attended": true,
+                    "grade": "D",
+                    "marks": 35.0,
+                    "pass": true,
+                    "points": null,
+                    "remark": "Satisfactory",
+                    "subject_rank": 5
+                }
+            },
+            "summary": {
+                "average": 40.0,
+                "division": null,
+                "grade": "C",
+                "points": 0,
+                "rank": 5,
+                "remark": "Good",
+                "status": "PASS",
+                "subjects_attended": 8,
+                "subjects_passed": 8,
+                "subjects_total": 8,
+                "total": 320.0
+            }
+        }
+    ],
+    "success": true
+}

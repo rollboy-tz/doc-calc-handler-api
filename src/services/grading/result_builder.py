@@ -1,21 +1,22 @@
 # services/grading/result_builder.py
 """
-RESULT BUILDER - CLEAN VARIABLES
+RESULT BUILDER - SIMPLE
 """
 
 class ResultBuilder:
+    """Build results for database"""
     
     @staticmethod
     def format_for_database(results):
-        """Format results - clean variables"""
+        """Format results"""
         if not results.get("success"):
             return results
         
         formatted = {
             "exam_id": results["metadata"]["exam_id"],
             "class_id": results["metadata"]["class_id"],
-            "rule": results["metadata"]["grading_rule"],
-            "processed": results["metadata"]["processing_time"],
+            "rule": results["metadata"]["rule"],
+            "processed": results["metadata"]["processed"],
             "students": []
         }
         
@@ -30,15 +31,12 @@ class ResultBuilder:
             }
             
             for subject_name, subject_data in student["subjects"].items():
-                subject_entry = {
+                student_entry["subjects"].append({
                     "name": subject_name,
                     "marks": subject_data["marks"],
                     "grade": subject_data["grade"],
-                    "points": subject_data.get("points"),
                     "pass": subject_data.get("pass", False)
-                }
-                
-                student_entry["subjects"].append(subject_entry)
+                })
             
             formatted["students"].append(student_entry)
         
