@@ -1,5 +1,5 @@
 """
-class_sheet.py - LANDSCAPE MULTI-PAGE VERSION
+class_sheet.py - FIXED VERSION (Using available styles)
 """
 from .base_template import BasePDFTemplate
 from reportlab.platypus import Table, TableStyle, Spacer, Paragraph, PageBreak
@@ -9,418 +9,215 @@ import os
 import re
 from datetime import datetime
 import logging
-from reportlab.platypus.flowables import KeepTogether
 
 logger = logging.getLogger(__name__)
 
 class ClassSheet(BasePDFTemplate):
-    """Professional class sheet with landscape orientation and multiple pages"""
+    """Fixed class sheet using available styles"""
     
     def generate(self, class_data, school_info=None):
-        """Generate multi-page class sheet"""
+        """Generate class sheet - SIMPLIFIED VERSION"""
         try:
             filename = self._create_filename(class_data, school_info)
             filepath = os.path.join(tempfile.gettempdir(), filename)
             
             class_id = class_data['metadata']['class_id']
             
-            # Create document with LANDSCAPE orientation
+            # Create document
             doc = self.create_document(
                 filepath=filepath,
                 title=f"Class Result Sheet - {class_id}",
-                subject=f"Class Analysis Report for {class_id}",
+                subject=f"Class Results for {class_id}",
                 author=self.system_config['author'],
-                orientation='landscape'  # LANDSCAPE MODE
+                orientation='landscape'
             )
             
-            # Build multi-page content
-            story = self._build_multi_page_content(class_data, school_info)
+            # Build content
+            story = self._build_simple_content(class_data, school_info)
             
             def build_canvas(canvas, doc):
                 school_name = school_info.get('name') if school_info else None
-                page_num = canvas.getPageNumber()
-                
-                # Different titles for different pages
-                if page_num == 1:
-                    page_title = "CLASS PERFORMANCE OVERVIEW"
-                elif page_num == 2:
-                    page_title = "DETAILED SUBJECT ANALYSIS"
-                else:
-                    page_title = f"CLASS REPORT - Page {page_num}"
-                
-                self.add_professional_header(canvas, doc, school_name, page_title)
+                self.add_professional_header(canvas, doc, school_name, "CLASS RESULT SHEET")
                 self.add_footer(canvas, doc)
             
             doc.build(story, onFirstPage=build_canvas, onLaterPages=build_canvas)
             
-            logger.info(f"Generated professional class sheet: {filename}")
+            logger.info(f"Generated class sheet: {filename}")
             return filepath
             
         except Exception as e:
             logger.error(f"Class sheet error: {e}")
             return self._create_error_pdf(str(e))
     
-    def _build_multi_page_content(self, class_data, school_info):
-        """Build multi-page content with different sections"""
+    def _build_simple_content(self, class_data, school_info):
+        """Build simple but clean content"""
         story = []
         
         metadata = class_data['metadata']
-        analytics = class_data.get('analytics', {})
         students = class_data['students']
         
-        # PAGE 1: CLASS OVERVIEW AND STUDENT RANKING
-        story.append(self._build_class_overview_page(metadata, analytics, school_info))
-        story.append(Spacer(1, 10))
+        # School header
+        if school_info and school_info.get('name'):
+            story.append(Paragraph(school_info['name'], self.styles['SchoolHeader']))
         
-        # Student ranking table
-        story.append(self._build_student_ranking_table(students))
-        story.append(Spacer(1, 15))
-        
-        # Class statistics
-        story.append(self._build_class_statistics(analytics))
-        
-        # PAGE BREAK
-        story.append(PageBreak())
-        
-        # PAGE 2: SUBJECT ANALYSIS
-        story.append(self._build_subject_analysis_page(analytics))
-        
-        # If there are many subjects, add more pages
-        if analytics.get('subjects'):
-            subjects = list(analytics['subjects'].keys())
-            # We could split subjects across pages if needed
-            
-        return story
-    
-    def _build_class_overview_page(self, metadata, analytics, school_info):
-        """Build class overview section"""
-        from reportlab.platypus import Paragraph
-        
-        content = []
-        
-        # Main title
-        content.append(Paragraph(
-            f"CLASS RESULT SHEET - {metadata['class_id']}",
+        # Title
+        story.append(Paragraph(
+            f"CLASS RESULT SHEET - {metadata['class_id']}", 
             self.styles['ReportTitle']
         ))
-        content.append(Spacer(1, 5))
+        story.append(Spacer(1, 10))
         
         # Exam info
         exam_info = f"""
         <b>Exam:</b> {metadata.get('exam_id', 'N/A')} | 
         <b>Academic Year:</b> {datetime.now().year} | 
-        <b>Grading System:</b> {metadata.get('system_name', 'Standard')}
+        <b>Total Students:</b> {len(students)}
         """
-        content.append(Paragraph(exam_info, self.styles['DataLabel']))
-        content.append(Spacer(1, 15))
+        story.append(Paragraph(exam_info, self.styles['Normal']))
+        story.append(Spacer(1, 15))
         
-        return content
+        # Students table
+        story.append(self._build_simple_student_table(students))
+        story.append(Spacer(1, 20))
+        
+        # Statistics if available
+        if 'analytics' in class_data:
+            story.append(self._build_simple_statistics(class_data['analytics']))
+        
+        # Footer
+        story.append(Paragraph(
+            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            self.styles['Italic']
+        ))
+        story.append(Paragraph(
+            f"System: {self.system_config['system_name']} v{self.system_config['version']}",
+            self.styles['Italic']
+        ))
+        
+        return story
     
-    def _build_student_ranking_table(self, students):
-        """Build professional student ranking table"""
-        from reportlab.platypus import Table
+    def _build_simple_student_table(self, students):
+        """Build simple student table"""
+        # Header
+        data = [["RANK", "NAME", "ADM NO", "GENDER", "TOTAL", "AVG%", "GRADE", "REMARKS"]]
         
-        # Prepare table data
-        data = []
-        
-        # Header row
-        header = ["RANK", "NAME", "ADM NO", "GENDER", "TOTAL", "AVG%", "GRADE", "DIVISION", "REMARKS"]
-        data.append(header)
-        
-        # Student rows
+        # Add student rows
         for idx, student in enumerate(students):
             stu = student['student']
             summary = student['summary']
             
-            # Format values
-            avg_text = f"{summary['average']:.1f}"
-            grade_text = summary['grade']
-            division_text = summary.get('division', '-')
-            remark_text = summary.get('remark', '-')
+            # Truncate long names
+            name = stu['name']
+            if len(name) > 25:
+                name = name[:22] + "..."
             
-            if len(remark_text) > 15:
-                remark_text = remark_text[:15] + "..."
+            # Truncate remarks
+            remark = summary.get('remark', '-')
+            if len(remark) > 15:
+                remark = remark[:12] + "..."
             
-            row = [
+            data.append([
                 str(summary['rank']),
-                stu['name'],
+                name,
                 stu['admission'],
                 stu['gender'],
                 str(summary['total']),
-                avg_text,
-                grade_text,
-                division_text,
-                remark_text
-            ]
-            data.append(row)
+                f"{summary['average']:.1f}",
+                summary['grade'],
+                remark
+            ])
         
-        # Calculate column widths for landscape
-        col_widths = [35, 140, 70, 45, 50, 45, 45, 50, 80]
+        # Column widths for landscape
+        col_widths = [40, 150, 80, 50, 60, 50, 50, 80]
         
-        # Create table
         table = Table(data, colWidths=col_widths, repeatRows=1)
         
-        # Apply styling
+        # Simple table styling
         table_style = TableStyle([
-            # Header styling
+            # Header
             ('BACKGROUND', (0,0), (-1,0), self.colors['header']),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
             ('FONTSIZE', (0,0), (-1,0), 9),
             ('ALIGN', (0,0), (-1,0), 'CENTER'),
-            ('BOTTOMPADDING', (0,0), (-1,0), 8),
+            
+            # Grid
+            ('GRID', (0,0), (-1,-1), 0.5, self.colors['border']),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             
             # Column alignments
             ('ALIGN', (0,1), (0,-1), 'CENTER'),  # Rank
             ('ALIGN', (3,1), (3,-1), 'CENTER'),  # Gender
             ('ALIGN', (4,1), (5,-1), 'CENTER'),  # Total & Avg
-            ('ALIGN', (6,1), (7,-1), 'CENTER'),  # Grade & Division
+            ('ALIGN', (6,1), (6,-1), 'CENTER'),  # Grade
             
-            # Grid and borders
-            ('GRID', (0,0), (-1,-1), 0.5, self.colors['border']),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            
-            # Row height
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), 
+            # Row colors
+            ('ROWBACKGROUNDS', (1,1), (-1,-1), 
              [self.colors['row_even'], self.colors['row_odd']]),
         ])
-        
-        # Add conditional formatting for grades
-        for i in range(1, len(data)):
-            grade = data[i][6]  # Grade column
-            
-            # Color coding based on grade
-            if grade == 'A':
-                table_style.add('TEXTCOLOR', (6,i), (6,i), colors.HexColor('#27AE60'))
-                table_style.add('FONTNAME', (6,i), (6,i), 'Helvetica-Bold')
-            elif grade == 'B':
-                table_style.add('TEXTCOLOR', (6,i), (6,i), colors.HexColor('#2ECC71'))
-            elif grade == 'C':
-                table_style.add('TEXTCOLOR', (6,i), (6,i), colors.HexColor('#F39C12'))
-            elif grade == 'D':
-                table_style.add('TEXTCOLOR', (6,i), (6,i), colors.HexColor('#E67E22'))
-            elif grade == 'E' or grade == 'F':
-                table_style.add('TEXTCOLOR', (6,i), (6,i), colors.HexColor('#E74C3C'))
         
         table.setStyle(table_style)
         return table
     
-    def _build_class_statistics(self, analytics):
-        """Build class statistics section"""
+    def _build_simple_statistics(self, analytics):
+        """Build simple statistics section"""
         from reportlab.platypus import Table, Paragraph
         
-        content = []
+        story = []
         
-        content.append(Paragraph("CLASS STATISTICS", self.styles['SectionTitle']))
-        content.append(Spacer(1, 5))
+        story.append(Paragraph("CLASS STATISTICS", self.styles['Heading3']))
+        story.append(Spacer(1, 5))
         
         class_stats = analytics.get('class', {})
         overview = class_stats.get('overview', {})
+        
+        # Simple statistics table
+        stats_data = [
+            ["STATISTIC", "VALUE"],
+            ["Class Average", f"{overview.get('average', 0):.1f}%"],
+            ["Highest Score", str(overview.get('range', {}).get('high', 0))],
+            ["Lowest Score", str(overview.get('range', {}).get('low', 0))],
+            ["Total Students", str(overview.get('students', 0))],
+            ["Subjects", str(overview.get('subjects', 0))],
+        ]
+        
+        # Add gender stats if available
         gender_stats = class_stats.get('gender', {})
-        grade_stats = class_stats.get('grades', {}).get('counts', {})
-        
-        # Statistics table
-        stats_data = []
-        
-        # Row 1: Overview
-        stats_data.append(["CLASS OVERVIEW", ""])
-        stats_data.append(["Total Students", str(overview.get('students', 0))])
-        stats_data.append(["Class Average", f"{overview.get('average', 0):.1f}%"])
-        stats_data.append(["Highest Score", str(overview.get('range', {}).get('high', 0))])
-        stats_data.append(["Lowest Score", str(overview.get('range', {}).get('low', 0))])
-        stats_data.append(["", ""])
-        
-        # Row 2: Gender Distribution
-        stats_data.append(["GENDER DISTRIBUTION", ""])
-        if gender_stats.get('F'):
-            stats_data.append(["Female Students", f"{gender_stats['F'].get('count', 0)} ({gender_stats['F'].get('percentage', 0):.1f}%)"])
-        if gender_stats.get('M'):
-            stats_data.append(["Male Students", f"{gender_stats['M'].get('count', 0)} ({gender_stats['M'].get('percentage', 0):.1f}%)"])
-        stats_data.append(["", ""])
-        
-        # Row 3: Grade Distribution
-        stats_data.append(["GRADE DISTRIBUTION", ""])
-        for grade, count in grade_stats.items():
-            percentage = class_stats.get('grades', {}).get('percentages', {}).get(grade, 0)
-            stats_data.append([f"Grade {grade}", f"{count} ({percentage:.1f}%)"])
+        if gender_stats:
+            stats_data.append(["", ""])
+            stats_data.append(["GENDER BREAKDOWN", ""])
+            for gender, data in gender_stats.items():
+                gender_name = "Female" if gender == 'F' else "Male"
+                stats_data.append([
+                    gender_name,
+                    f"{data.get('count', 0)} ({data.get('percentage', 0):.1f}%)"
+                ])
         
         stats_table = Table(stats_data, colWidths=[120, 100])
         stats_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), self.colors['primary']),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0,0), (-1,0), 9),
             ('GRID', (0,0), (-1,-1), 0.5, self.colors['border']),
             ('ROWBACKGROUNDS', (1,1), (-1,-1), 
              [self.colors['row_even'], self.colors['row_odd']]),
-            ('SPAN', (0,0), (1,0)),  # Span title row
-            ('SPAN', (0,6), (1,6)),  # Span gender title
-            ('SPAN', (0,12), (1,12)), # Span grade title
             ('ALIGN', (1,1), (1,-1), 'RIGHT'),
-            ('PADDING', (0,0), (-1,-1), 4),
         ]))
         
-        content.append(stats_table)
-        return content
-    
-    def _build_subject_analysis_page(self, analytics):
-        """Build subject analysis page"""
-        from reportlab.platypus import Paragraph, Table
-        
-        content = []
-        
-        # Page title
-        content.append(Paragraph("SUBJECT PERFORMANCE ANALYSIS", self.styles['ReportTitle']))
-        content.append(Spacer(1, 10))
-        
-        subjects = analytics.get('subjects', {})
-        
-        if not subjects:
-            content.append(Paragraph("No subject data available.", self.styles['DataLabel']))
-            return content
-        
-        # Create a summary table of all subjects
-        summary_data = [["SUBJECT", "AVERAGE", "HIGHEST", "LOWEST", "PASS RATE", "TOP GRADE"]]
-        
-        for subject_name, subject_data in subjects.items():
-            perf = subject_data.get('performance', {})
-            grades = subject_data.get('grades', {}).get('counts', {})
-            
-            # Find top grade
-            top_grade = '-'
-            if grades:
-                # Find grade with highest count
-                top_grade = max(grades.items(), key=lambda x: x[1])[0] if grades else '-'
-            
-            summary_data.append([
-                subject_name.upper(),
-                f"{perf.get('average', 0):.1f}%",
-                str(perf.get('high', 0)),
-                str(perf.get('low', 0)),
-                f"{perf.get('pass_rate', 0):.1f}%",
-                top_grade
-            ])
-        
-        # Subject summary table
-        summary_table = Table(summary_data, colWidths=[90, 60, 55, 55, 60, 60])
-        summary_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), self.colors['secondary']),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0,0), (-1,0), 8),
-            ('ALIGN', (0,0), (-1,0), 'CENTER'),
-            ('GRID', (0,0), (-1,-1), 0.5, self.colors['border']),
-            ('ROWBACKGROUNDS', (1,1), (-1,-1), 
-             [self.colors['row_even'], self.colors['row_odd']]),
-            ('ALIGN', (1,1), (4,-1), 'CENTER'),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('PADDING', (0,0), (-1,-1), 4),
-        ]))
-        
-        content.append(summary_table)
-        content.append(Spacer(1, 15))
-        
-        # Add detailed subject tables in groups of 3
-        subject_list = list(subjects.items())
-        
-        for i in range(0, len(subject_list), 3):
-            subject_group = subject_list[i:i+3]
-            content.append(self._build_subject_detail_tables(subject_group))
-            if i + 3 < len(subject_list):
-                content.append(Spacer(1, 10))
-        
-        return content
-    
-    def _build_subject_detail_tables(self, subject_group):
-        """Build detailed tables for a group of subjects"""
-        from reportlab.platypus import Table, Paragraph
-        
-        content = []
-        
-        for subject_name, subject_data in subject_group:
-            # Subject header
-            content.append(Paragraph(
-                f"{subject_name.upper()} ANALYSIS",
-                self.styles['SectionTitle']
-            ))
-            
-            # Create three-column layout for subject details
-            perf = subject_data.get('performance', {})
-            gender = subject_data.get('gender', {})
-            grades = subject_data.get('grades', {})
-            
-            # Performance table
-            perf_data = [
-                ["PERFORMANCE", ""],
-                ["Class Average", f"{perf.get('average', 0):.1f}%"],
-                ["Highest Score", str(perf.get('high', 0))],
-                ["Lowest Score", str(perf.get('low', 0))],
-                ["Pass Rate", f"{perf.get('pass_rate', 0):.1f}%"],
-                ["", ""],
-                ["GENDER ANALYSIS", ""],
-                ["Female Average", f"{gender.get('averages', {}).get('F', 0):.1f}%"],
-                ["Male Average", f"{gender.get('averages', {}).get('M', 0):.1f}%"],
-            ]
-            
-            perf_table = Table(perf_data, colWidths=[80, 60])
-            perf_table.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (1,0), self.colors['accent']),
-                ('BACKGROUND', (0,6), (1,6), self.colors['accent']),
-                ('TEXTCOLOR', (0,0), (1,0), colors.white),
-                ('TEXTCOLOR', (0,6), (1,6), colors.white),
-                ('FONTNAME', (0,0), (1,0), 'Helvetica-Bold'),
-                ('FONTNAME', (0,6), (1,6), 'Helvetica-Bold'),
-                ('GRID', (0,0), (-1,-1), 0.5, self.colors['border']),
-                ('SPAN', (0,0), (1,0)),
-                ('SPAN', (0,6), (1,6)),
-                ('ALIGN', (1,1), (1,-1), 'RIGHT'),
-            ]))
-            
-            # Grade distribution table
-            grade_counts = grades.get('counts', {})
-            grade_percentages = grades.get('percentages', {})
-            
-            grade_data = [["GRADE", "COUNT", "%"]]
-            for grade in sorted(grade_counts.keys()):
-                count = grade_counts[grade]
-                percentage = grade_percentages.get(grade, 0)
-                grade_data.append([grade, str(count), f"{percentage:.1f}%"])
-            
-            grade_table = Table(grade_data, colWidths=[40, 40, 40])
-            grade_table.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), self.colors['primary']),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('GRID', (0,0), (-1,-1), 0.5, self.colors['border']),
-                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ]))
-            
-            # Combine tables side by side
-            from reportlab.platypus import KeepTogether
-            
-            combined = Table([[perf_table, grade_table]], colWidths=[140, 120])
-            combined.setStyle(TableStyle([
-                ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                ('LEFTPADDING', (0,0), (0,0), 0),
-                ('RIGHTPADDING', (1,0), (1,0), 0),
-            ]))
-            
-            content.append(combined)
-            content.append(Spacer(1, 10))
-        
-        return KeepTogether(content)
+        story.append(stats_table)
+        return story
     
     def _create_filename(self, class_data, school_info):
         """Create filename"""
         class_id = class_data['metadata']['class_id']
-        clean_class = re.sub(r'[^\w\-]', '_', class_id)[:30]
+        clean_class = re.sub(r'[^\w\-]', '_', class_id)[:20]
         school_code = school_info.get('code', 'SCH') if school_info else 'SCH'
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
-        return f"{school_code}_ClassReport_{clean_class}_{timestamp}.pdf"
+        return f"{school_code}_Class_{clean_class}_{timestamp}.pdf"
     
     def _create_error_pdf(self, error_msg):
-        """Enhanced error PDF"""
+        """Create error PDF"""
         temp_file = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
         
         from reportlab.pdfgen import canvas
@@ -429,32 +226,30 @@ class ClassSheet(BasePDFTemplate):
         c = canvas.Canvas(temp_file.name, pagesize=A4)
         
         # Set metadata
-        c.setTitle("Class Report Error")
+        c.setTitle("Class Sheet Error")
         c.setAuthor(self.system_config['author'])
         c.setSubject("System Error Report")
         c.setCreator(self.system_config['system_name'])
         c.setProducer(f"{self.system_config['system_name']} v{self.system_config['version']}")
         
-        # Professional error display
+        # Error content
         c.setFont("Helvetica-Bold", 16)
-        c.setFillColor(self.colors['danger'])
-        c.drawString(50, 800, "CLASS REPORT GENERATION ERROR")
+        c.setFillColor(colors.HexColor('#E74C3C'))
+        c.drawString(50, 800, "⚠️ CLASS SHEET ERROR")
         
         c.setFont("Helvetica", 10)
-        c.setFillColor(self.colors['dark'])
-        c.drawString(50, 770, "The system encountered an error while generating the class report.")
+        c.setFillColor(colors.black)
+        c.drawString(50, 770, "The system encountered an error while generating the class sheet.")
         
-        # Error box
-        c.setFillColor(colors.HexColor('#FFF3CD'))
-        c.setStrokeColor(colors.HexColor('#FFEEBA'))
-        c.roundRect(50, 700, 500, 60, 5, fill=1, stroke=1)
+        # Error message
+        c.setFont("Helvetica", 9)
+        c.drawString(50, 740, f"Error: {error_msg[:100]}")
         
-        c.setFillColor(colors.HexColor('#856404'))
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(60, 740, "Error Details:")
-        
-        c.setFont("Courier", 9)
-        c.drawString(60, 720, error_msg[:70] if len(error_msg) > 70 else error_msg)
+        # System info
+        c.setFont("Helvetica", 8)
+        c.setFillColor(colors.grey)
+        c.drawString(50, 710, f"System: {self.system_config['system_name']}")
+        c.drawString(50, 695, f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
         c.save()
         return temp_file.name
