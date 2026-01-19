@@ -1,8 +1,9 @@
 """
-Report Generation Routes
+routes/report_routes.py
+FIXED - Correct imports
 """
 from flask import Blueprint, request, jsonify, send_file
-from services.pdf_reports import ReportFactory, ReportMetadata
+from services.pdf_reports import ReportFactory, ReportMetadata  # ✅ This is correct
 import tempfile
 import os
 import logging
@@ -17,7 +18,6 @@ def generate_student_report():
     try:
         data = request.get_json()
         
-        # Validate
         if not data or 'student_data' not in data:
             return jsonify({
                 'success': False,
@@ -38,7 +38,6 @@ def generate_student_report():
             data.get('school_info')
         )
         
-        # Return file
         return send_file(
             pdf_path,
             as_attachment=True,
@@ -53,7 +52,7 @@ def generate_student_report():
             'error': str(e)
         }), 500
 
-@report_routes.route('/api/reports/class', methods=['POST'])
+@report_routes.route('/api/results/class', methods=['POST'])
 def generate_class_sheet():
     """Generate class result sheet"""
     try:
