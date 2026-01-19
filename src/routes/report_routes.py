@@ -22,96 +22,105 @@ except ImportError as e:
     logger.error(f"Failed to import PDF services: {e}")
     # We'll handle this in the routes
 
+def transform_api_data_to_report_format(api_response):
+    """
+    Transform your API response to the format expected by the PDF generator
+    
+    Supports both formats you provided:
+    1. Format with analytics, metadata, students
+    2. Simple student data format
+    """
+    if not api_response.get('success'):
+        raise ValueError("API response indicates failure")
+    
+    # Check if it's the complex format (with analytics)
+    if 'students' in api_response and 'metadata' in api_response:
+        students = api_response['students']
+        if not students:
+            raise ValueError("No student data in API response")
+        
+        # Use first student for individual report
+        first_student = students[0]
+        
+        # Transform subjects from dict to list
+        subjects_list = []
+        if 'subjects' in first_student:
+            for subject_name, subject_data in first_student['subjects'].items():
+                if isinstance(subject_data, dict):
+                    subject_item = subject_data.copy()
+                    subject_item['name'] = subject_name.title()
+                    subjects_list.append(subject_item)
+        
+        # Build student data structure
+        transformed = {
+            'student': first_student['student'],
+            'summary': first_student['summary'],
+            'subjects': subjects_list
+        }
+        
+        # Extract metadata for class info
+        metadata = api_response.get('metadata', {})
+        class_info = {
+            'class_name': metadata.get('class_id', '').replace('CLASS_', '').replace('_', ' '),
+            'exam_name': metadata.get('system_name', 'EXAMINATION'),
+            'term': 'I',  # Default, you might want to extract this from somewhere
+            'year': datetime.now().year
+        }
+        
+        return transformed, class_info, {}
+    
+    # If it's already in simple format
+    elif 'student_data' in api_response:
+        student_data = api_response['student_data']
+        class_info = api_response.get('class_info', {})
+        school_info = api_response.get('school_info', {})
+        
+        return student_data, class_info, school_info
+    
+    else:
+        raise ValueError("Unsupported API response format")
+
 # ========== STUDENT REPORT ==========
 
 @report_bp.route('/api/reports/student', methods=['POST'])
 def generate_student_report():
-    """
-    Generate student academic report PDF
-    ---
-    Expected JSON structure:
-    {
-        "student_data": {
-            "student": {
-                "name": "Student Name",
-                "admission": "ADM001",
-                "gender": "Male/Female",
-                "class": "Form 4",
-                "year": "2024"
-            },
-            "summary": {
-                "total": 450,
-                "average": 75.0,
-                "grade": "B",
-                "position": "15/50",
-                "division": "II",
-                "remark": "Good performance"
-            },
-            "subjects": [
-                {"name": "Math", "score": 85, "grade": "A", "remarks": "Excellent"}
-            ],
-            "comments": {
-                "class_teacher": "Teacher name",
-                "principal": "Principal name",
-                "remarks": "Additional comments"
-            }
-        },
-        "class_info": {
-            "class_name": "FORM 4 EAST",
-            "exam_name": "TERM I EXAM",
-            "term": "I",
-            "year": "2024"
-        },
-        "school_info": {
-            "name": "School Name",
-            "motto": "School Motto",
-            "address": "School Address"
-        },
-        "config": {
-            "system_name": "EDU-MANAGER",
-            "footer_text": "Confidential"
-        }
-    }
-    """
+    """Generate student academic report PDF"""
     try:
         # Get request data
         data = request.get_json()
         
         # Validate required data
-        if not data or 'student_data' not in data:
+        if not data:
             return jsonify({
                 'success': False,
-                'error': 'Missing student_data in request'
+                'error': 'No JSON data provided'
             }), 400
         
-        # Extract data with defaults
-        student_data = data['student_data']
-        class_info = data.get('class_info', {})
-        school_info = data.get('school_info', {})
-        user_config = data.get('config', {})
-        
-        # Validate required student fields
-        required_student_fields = ['student', 'summary']
-        for field in required_student_fields:
-            if field not in student_data:
-                return jsonify({
-                    'success': False,
-                    'error': f'Missing {field} in student_data'
-                }), 400
+        # Transform data if needed
+        if 'students' in data and 'metadata' in data:
+            # This is your API response format
+            student_data, class_info, school_info = transform_api_data_to_report_format(data)
+        elif 'student_data' in data:
+            # Already in correct format
+            student_data = data['student_data']
+            class_info = data.get('class_info', {})
+            school_info = data.get('school_info', {})
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid data format. Expected API response or student_data'
+            }), 400
         
         # System configuration
         system_config = {
             "system_name": "EDU-MANAGER PRO",
             "version": "2.0.0",
-            "domain": "edumanager.ac.tz",
-            "support_email": "support@edumanager.ac.tz",
-            "support_phone": "+255 123 456 789",
-            "company": "EduManager Solutions Ltd",
             "footer_text": "Confidential - For official use only",
             "generated_date": datetime.now().strftime("%d/%m/%Y %H:%M")
         }
         
-        # Merge user config with system config
+        # Merge with user config if provided
+        user_config = data.get('config', {})
         final_config = {**system_config, **user_config}
         
         # Create generator and generate PDF
@@ -140,11 +149,19 @@ def generate_student_report():
             mimetype='application/pdf'
         )
         
-    except Exception as e:
-        logger.error(f"Error generating student report: {str(e)}\n{traceback.format_exc()}")
+    except ValueError as e:
+        logger.warning(f"Validation error: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 400
+        
+    except Exception as e:
+        logger.error(f"Error generating report: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to generate report',
+            'details': str(e)[:200]
         }), 500
 
 # ========== TEST ENDPOINT ==========
