@@ -1,18 +1,9 @@
 FROM python:3.11-slim
 
-# UPDATE APT SOURCES FIRST
-RUN apt-get update && apt-get install -y \
-    curl \
-    gnupg
-
-# ADD DEBIAN BACKPORTS REPO FOR NEWER PACKAGES
-RUN echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list
-
-# INSTALL SYSTEM DEPENDENCIES FOR WEASYPRINT 61+
+# INSTALL SYSTEM DEPENDENCIES FOR WEASYPRINT
 RUN apt-get update && apt-get install -y \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
-    libharfbuzz0b \
     libcairo2 \
     libgdk-pixbuf-2.0-0 \
     libffi-dev \
@@ -20,7 +11,6 @@ RUN apt-get update && apt-get install -y \
     fonts-liberation \
     fonts-dejavu \
     fonts-freefont-ttf \
-    # Additional fonts
     fontconfig \
     && fc-cache -f -v
 
@@ -34,16 +24,20 @@ COPY . .
 
 EXPOSE 5000
 
-# TEST PDF GENERATION ON STARTUP
-RUN python -c "
+# Create simple test script to verify PDF works
+RUN echo '#!/usr/bin/env python3
+import sys
 try:
     from weasyprint import HTML
-    html = HTML(string='<h1>Test</h1>')
+    html = HTML(string=\"<h1>Test PDF</h1><p>If you see this, PDF generation works!</p>\")
     pdf = html.write_pdf()
-    print('✅ WeasyPrint installation successful')
+    print(f\"✅ PDF generation successful: {len(pdf)} bytes\")
+    with open(\"/tmp/test_weasyprint.pdf\", \"wb\") as f:
+        f.write(pdf)
+    print(\"✅ Test PDF saved to /tmp/test_weasyprint.pdf\")
 except Exception as e:
-    print(f'❌ WeasyPrint error: {e}')
-    raise
-"
+    print(f\"❌ Error: {e}\")
+    sys.exit(1)
+' > /test_pdf.py && python /test_pdf.py
 
 CMD ["python", "app.py"]
