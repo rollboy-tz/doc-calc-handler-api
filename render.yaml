@@ -1,0 +1,11 @@
+# render.yaml
+services:
+  - type: web
+    name: eduasas-python-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: FLASK_ENV
+        value: production
+    autoDeploy: true
