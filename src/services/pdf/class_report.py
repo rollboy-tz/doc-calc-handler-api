@@ -1,11 +1,10 @@
 """
-CLASS REPORT GENERATOR
+CLASS REPORT GENERATOR - STABLE VERSION
 """
 from datetime import datetime
 
 
 class ClassReportGenerator:
-    """Generate class report PDF"""
     
     def __init__(self):
         pass
@@ -27,7 +26,7 @@ class ClassReportGenerator:
         return len(errors) == 0, errors
     
     def generate(self, class_data, school_info=None):
-        """Generate PDF"""
+        """Generate PDF - STABLE VERSION"""
         try:
             # Validate
             is_valid, errors = self.validate_data(class_data)
@@ -35,37 +34,39 @@ class ClassReportGenerator:
                 return False, {"errors": errors}
             
             # Create HTML
-            html_content = self._create_html(class_data, school_info)
+            html_content = self._create_simple_html(class_data, school_info)
             
             # Generate PDF
-            pdf_bytes = self._generate_pdf(html_content)
+            from weasyprint import HTML
+            html_obj = HTML(string=html_content)
+            pdf_bytes = html_obj.write_pdf()
             
             return True, pdf_bytes
             
         except Exception as e:
             return False, {"error": str(e)}
     
-    def _create_html(self, class_data, school_info):
-        """Create HTML content"""
+    def _create_simple_html(self, class_data, school_info):
+        """Create SIMPLE HTML"""
         metadata = class_data['metadata']
         students = class_data.get('students', [])
         school = school_info or {}
         
-        # Students table
+        # Students table - SIMPLE
         students_rows = ""
         if students:
-            for i, student in enumerate(students[:10], 1):
+            for i, student in enumerate(students[:15], 1):
                 stu_info = student.get('student', {})
                 summary = student.get('summary', {})
                 
                 students_rows += f"""
                 <tr>
-                    <td>{i}</td>
+                    <td align="center">{i}</td>
                     <td>{stu_info.get('name', '')}</td>
                     <td>{stu_info.get('admission', '')}</td>
-                    <td>{summary.get('average', 0)}</td>
-                    <td>{summary.get('grade', 'N/A')}</td>
-                    <td>{summary.get('division', 'N/A')}</td>
+                    <td align="center">{summary.get('average', 0)}</td>
+                    <td align="center">{summary.get('grade', 'N/A')}</td>
+                    <td align="center">{summary.get('division', 'N/A')}</td>
                 </tr>
                 """
         
@@ -75,20 +76,39 @@ class ClassReportGenerator:
     <meta charset="UTF-8">
     <title>Class Report</title>
     <style>
-        body {{ font-family: Arial; margin: 15px; }}
-        h1 {{ color: #2c3e50; text-align: center; }}
-        table {{ width: 100%; border-collapse: collapse; }}
-        th {{ background: #2c3e50; color: white; padding: 8px; }}
-        td {{ border: 1px solid #ddd; padding: 6px; }}
-        .header {{ text-align: center; margin-bottom: 20px; }}
-        .footer {{ margin-top: 30px; text-align: center; color: #666; }}
+        body {{
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            margin: 15px;
+        }}
+        h1 {{
+            color: #000000;
+            text-align: center;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+        th {{
+            background-color: #333333;
+            color: #FFFFFF;
+            padding: 8px;
+            border: 1px solid #000000;
+        }}
+        td {{
+            padding: 6px;
+            border: 1px solid #CCCCCC;
+        }}
+        .footer {{
+            margin-top: 30px;
+            text-align: center;
+            color: #666666;
+        }}
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>{school.get('name', 'CLASS REPORT')}</h1>
-        <p>Class: {metadata.get('class_id', '')}</p>
-    </div>
+    <h1>{school.get('name', 'CLASS REPORT')}</h1>
+    <p style="text-align: center;">{metadata.get('class_id', '')}</p>
     
     <h2>Students Performance</h2>
     <table>
@@ -100,19 +120,13 @@ class ClassReportGenerator:
             <th>Grade</th>
             <th>Division</th>
         </tr>
-        {students_rows if students_rows else '<tr><td colspan="6">No students</td></tr>'}
+        {students_rows if students_rows else '<tr><td colspan="6" align="center">No students data</td></tr>'}
     </table>
     
     <div class="footer">
-        <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+        <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
     </div>
 </body>
 </html>"""
         
         return html
-    
-    def _generate_pdf(self, html_content):
-        """Convert HTML to PDF using WeasyPrint"""
-        from weasyprint import HTML
-        html_obj = HTML(string=html_content)
-        return html_obj.write_pdf()
