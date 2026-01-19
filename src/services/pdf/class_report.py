@@ -1,56 +1,52 @@
 """
-CLASS REPORT GENERATOR - FIXED PDF OUTPUT
+CLASS REPORT GENERATOR
 """
 from datetime import datetime
 
 
 class ClassReportGenerator:
+    """Generate class report PDF"""
     
     def __init__(self):
         pass
     
     def validate_data(self, class_data):
         """Validate class data"""
-        errors = []
-        
         if not class_data:
-            errors.append("No class data")
-            return False, errors
+            return False, ["No class data"]
         
         if 'metadata' not in class_data:
-            errors.append("Missing 'metadata'")
-            return False, errors
+            return False, ["Missing 'metadata' object"]
         
         metadata = class_data['metadata']
+        errors = []
+        
         if not metadata.get('class_id'):
-            errors.append("Missing class_id")
+            errors.append("Missing class_id in metadata")
         
         return len(errors) == 0, errors
     
     def generate(self, class_data, school_info=None):
-        """Generate proper PDF"""
+        """Generate PDF"""
         try:
             # Validate
             is_valid, errors = self.validate_data(class_data)
             if not is_valid:
                 return False, {"errors": errors}
             
-            # Generate clean HTML
-            html = self._create_clean_html(class_data, school_info)
+            # Create HTML
+            html_content = self._create_html(class_data, school_info)
             
             # Generate PDF
-            from weasyprint import HTML
-            html_obj = HTML(string=html, encoding='utf-8')
-            pdf_bytes = html_obj.write_pdf()
+            pdf_bytes = self._generate_pdf(html_content)
             
             return True, pdf_bytes
             
         except Exception as e:
-            import traceback
-            return False, {"error": str(e), "traceback": traceback.format_exc()}
+            return False, {"error": str(e)}
     
-    def _create_clean_html(self, class_data, school_info):
-        """Create clean HTML"""
+    def _create_html(self, class_data, school_info):
+        """Create HTML content"""
         metadata = class_data['metadata']
         students = class_data.get('students', [])
         school = school_info or {}
@@ -58,7 +54,7 @@ class ClassReportGenerator:
         # Students table
         students_rows = ""
         if students:
-            for i, student in enumerate(students[:15], 1):
+            for i, student in enumerate(students[:10], 1):
                 stu_info = student.get('student', {})
                 summary = student.get('summary', {})
                 
@@ -74,28 +70,27 @@ class ClassReportGenerator:
                 """
         
         html = f"""<!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>Class Report - {metadata.get('class_id', '')}</title>
+    <title>Class Report</title>
     <style>
-        body {{
-            font-family: Arial;
-            font-size: 11px;
-            margin: 15px;
-        }}
+        body {{ font-family: Arial; margin: 15px; }}
         h1 {{ color: #2c3e50; text-align: center; }}
         table {{ width: 100%; border-collapse: collapse; }}
         th {{ background: #2c3e50; color: white; padding: 8px; }}
         td {{ border: 1px solid #ddd; padding: 6px; }}
+        .header {{ text-align: center; margin-bottom: 20px; }}
         .footer {{ margin-top: 30px; text-align: center; color: #666; }}
     </style>
 </head>
 <body>
-    <h1>{school.get('name', 'CLASS REPORT')}</h1>
-    <p style="text-align: center;">Class: {metadata.get('class_id', '')}</p>
+    <div class="header">
+        <h1>{school.get('name', 'CLASS REPORT')}</h1>
+        <p>Class: {metadata.get('class_id', '')}</p>
+    </div>
     
-    <h2>Top Students</h2>
+    <h2>Students Performance</h2>
     <table>
         <tr>
             <th>Rank</th>
@@ -115,3 +110,9 @@ class ClassReportGenerator:
 </html>"""
         
         return html
+    
+    def _generate_pdf(self, html_content):
+        """Convert HTML to PDF using WeasyPrint"""
+        from weasyprint import HTML
+        html_obj = HTML(string=html_content)
+        return html_obj.write_pdf()
