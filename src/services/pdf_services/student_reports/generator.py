@@ -1,5 +1,5 @@
 """
-Student Report Generator - WITH TABLE HEADERS & LANDSCAPE
+Student Report Generator - CLEAN VERSION
 """
 import os
 import tempfile
@@ -12,25 +12,30 @@ from ..base.constants import PDFConstants
 
 
 class StudentReportGenerator(BasePDFTemplate):
-    """Student report generator with headers and landscape"""
+    """Student report generator - CLEAN & PROFESSIONAL"""
     
     def __init__(self, config: dict = None):
         super().__init__(config)
         self.system_rule = self.config.get('system_rule', '').lower()
         self.system_name = self.config.get('system_name', '')
         
-        # Set landscape orientation
-        self._setup_landscape()
+        # Use soft colors
+        self._setup_soft_colors()
     
-    def _setup_landscape(self):
-        """Setup for landscape orientation"""
-        # We'll handle this in the generation
+    def _setup_soft_colors(self):
+        """Setup soft colors for professional look"""
+        self.soft_primary = (59, 89, 152)     # Softer blue
+        self.soft_secondary = (72, 87, 117)   # Softer dark blue
+        self.soft_success = (46, 125, 50)     # Softer green
+        self.soft_danger = (211, 47, 47)      # Softer red
+        self.soft_light = (245, 245, 245)     # Softer light gray
+        self.soft_border = (224, 224, 224)    # Softer border
     
     def generate(self, 
                  student_data: Dict[str, Any],
                  class_info: Dict[str, Any] = None,
                  school_info: Dict[str, Any] = None) -> str:
-        """Generate student report PDF in LANDSCAPE"""
+        """Generate student report PDF"""
         try:
             # Generate filename
             student = student_data.get('student', {})
@@ -43,284 +48,312 @@ class StudentReportGenerator(BasePDFTemplate):
             )
             filepath = get_temp_path(filename)
             
-            # Create new PDF with LANDSCAPE
-            from fpdf import FPDF
-            
-            # Create landscape PDF
-            self._pdf = FPDF(orientation='L', unit='mm', format='A4')
-            self._setup_pdf_basics()
-            
             # Build document
-            self._build_landscape_document(student_data, class_info or {}, school_info or {})
+            self._build_clean_document(student_data, class_info or {}, school_info or {})
             
             # Output PDF
-            self._pdf.output(filepath)
+            self.output(filepath)
             return filepath
             
         except Exception as e:
             return self._create_error_pdf(str(e))
     
-    def _setup_pdf_basics(self):
-        """Setup basic PDF properties"""
-        pdf = self._pdf
-        pdf.set_margins(15, 15, 15)
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
-        pdf.set_font("helvetica", "", 10)
-    
-    def _build_landscape_document(self, student_data: Dict[str, Any], 
-                                  class_info: Dict[str, Any], 
-                                  school_info: Dict[str, Any]):
-        """Build document in LANDSCAPE layout"""
-        pdf = self._pdf
-        
+    def _build_clean_document(self, student_data: Dict[str, Any], 
+                              class_info: Dict[str, Any], 
+                              school_info: Dict[str, Any]):
+        """Build clean document"""
         # Detect system
         if not self.system_rule and 'rule' in class_info:
             self.system_rule = class_info['rule'].lower()
         
         # ===== HEADER =====
-        self._build_landscape_header(pdf, school_info, class_info)
+        self._build_clean_header(school_info, class_info)
         
-        # ===== STUDENT INFO =====
-        self._build_landscape_student_info(pdf, student_data.get('student', {}))
+        # ===== STUDENT INFO (VERTICAL) =====
+        self._build_vertical_student_info(student_data.get('student', {}))
         
-        # ===== ACADEMIC SUMMARY TABLE WITH HEADERS =====
+        # ===== ACADEMIC SUMMARY TABLE =====
         summary = student_data.get('summary', {})
-        self._build_summary_table_with_headers(pdf, summary)
+        self._build_clean_summary_table(summary)
         
         # ===== SUBJECTS TABLE =====
         if 'subjects' in student_data:
-            self._build_landscape_subjects_table(pdf, student_data['subjects'])
+            self._build_clean_subjects_table(student_data['subjects'])
         
         # ===== FOOTER =====
-        self._build_landscape_footer(pdf, class_info)
+        self._build_clean_footer(class_info)
     
-    def _build_landscape_header(self, pdf, school_info: Dict[str, Any], class_info: Dict[str, Any]):
-        """Build header for landscape"""
+    def _build_clean_header(self, school_info: Dict[str, Any], class_info: Dict[str, Any]):
+        """Build clean header"""
         # School name
-        pdf.set_font("helvetica", "B", 16)
-        pdf.set_text_color(*PDFConstants.PRIMARY_COLOR)
+        self.set_font(PDFConstants.BOLD_FONT, "B", 14)
+        self.set_text_color(*self.soft_primary)
         
         school_name = school_info.get('name', 'SCHOOL NAME')
-        pdf.cell(0, 10, school_name, 0, 1, 'C')
+        self.cell(0, 8, school_name, 0, 1, 'C')
         
         # System label
         system_label = self._get_system_label()
-        pdf.set_font("helvetica", "B", 14)
-        pdf.set_text_color(*PDFConstants.SECONDARY_COLOR)
-        pdf.cell(0, 8, system_label, 0, 1, 'C')
+        self.set_font(PDFConstants.BOLD_FONT, "B", 12)
+        self.set_text_color(*self.soft_secondary)
+        self.cell(0, 6, system_label, 0, 1, 'C')
         
-        # Exam and class info
+        # Exam name
         exam_name = class_info.get('exam_name', 'EXAMINATION')
+        self.set_font(PDFConstants.DEFAULT_FONT, "B", 11)
+        self.cell(0, 6, exam_name, 0, 1, 'C')
+        
+        # Class and term
         class_name = class_info.get('class_name', '')
         term = class_info.get('term', 'I')
         year = class_info.get('year', datetime.now().year)
         
-        pdf.set_font("helvetica", "B", 12)
-        pdf.cell(0, 8, exam_name, 0, 1, 'C')
-        
-        pdf.set_font("helvetica", "", 11)
+        self.set_font(PDFConstants.DEFAULT_FONT, "", 10)
         info_text = f"Class: {class_name} | Term: {term} | Year: {year}"
-        pdf.cell(0, 7, info_text, 0, 1, 'C')
+        self.cell(0, 5, info_text, 0, 1, 'C')
         
-        pdf.ln(5)
-        self._add_separator(pdf)
-        pdf.ln(5)
+        self.ln(8)
+        self._add_soft_separator()
+        self.ln(5)
     
     def _get_system_label(self):
         """Get system label"""
         if self.system_rule == 'acsee':
-            return "ADVANCED CERTIFICATE OF SECONDARY EDUCATION"
+            return "Advanced Certificate of Secondary Education"
         elif self.system_rule == 'csee':
-            return "CERTIFICATE OF SECONDARY EDUCATION"
+            return "Certificate of Secondary Education" 
         elif self.system_rule == 'plse':
-            return "PRIMARY SCHOOL LEAVING EXAMINATION"
+            return "Primary School Leaving Examination"
         else:
-            return "ACADEMIC PERFORMANCE REPORT"
+            return "Academic Performance Report"
     
-    def _build_landscape_student_info(self, pdf, student: Dict[str, Any]):
-        """Build student info for landscape"""
-        pdf.set_font("helvetica", "B", 12)
-        pdf.set_text_color(*PDFConstants.PRIMARY_COLOR)
-        pdf.cell(0, 8, "STUDENT INFORMATION", 0, 1, 'L')
-        pdf.ln(2)
+    def _build_vertical_student_info(self, student: Dict[str, Any]):
+        """Build student info VERTICALLY"""
+        self.set_font(PDFConstants.BOLD_FONT, "B", 11)
+        self.set_text_color(*self.soft_primary)
+        self.cell(0, 7, "STUDENT INFORMATION", 0, 1, 'L')
+        self.ln(3)
         
-        pdf.set_font("helvetica", "", 11)
-        pdf.set_text_color(0, 0, 0)
+        # Vertical list
+        line_height = 6
         
-        # Create info table
-        col1 = 40
-        col2 = 80
-        col3 = 40
-        col4 = 80
-        
-        # Row 1: Name and Admission
+        # Name
         if 'name' in student:
-            pdf.set_font("helvetica", "B", 11)
-            pdf.set_text_color(*PDFConstants.SECONDARY_COLOR)
-            pdf.cell(col1, 6, "Name:", 0, 0, 'L')
+            self.set_font(PDFConstants.BOLD_FONT, "B", 10)
+            self.set_text_color(*self.soft_secondary)
+            self.cell(40, line_height, "Name:", 0, 0, 'L')
             
-            pdf.set_font("helvetica", "B", 11)
-            pdf.set_text_color(0, 0, 0)
-            pdf.cell(col2, 6, student['name'], 0, 0, 'L')
+            self.set_font(PDFConstants.DEFAULT_FONT, "B", 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, line_height, student['name'], 0, 1, 'L')
         
+        # Admission
         if 'admission' in student:
-            pdf.set_font("helvetica", "B", 11)
-            pdf.set_text_color(*PDFConstants.SECONDARY_COLOR)
-            pdf.cell(col3, 6, "Admission No:", 0, 0, 'L')
+            self.set_font(PDFConstants.BOLD_FONT, "B", 10)
+            self.set_text_color(*self.soft_secondary)
+            self.cell(40, line_height, "Admission No:", 0, 0, 'L')
             
-            pdf.set_font("helvetica", "B", 11)
-            pdf.set_text_color(0, 0, 0)
-            pdf.cell(col4, 6, student['admission'], 0, 1, 'L')
-        else:
-            pdf.ln(6)
+            self.set_font(PDFConstants.DEFAULT_FONT, "B", 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, line_height, student['admission'], 0, 1, 'L')
         
-        # Row 2: Gender and Class
+        # Gender
         if 'gender' in student:
             gender_display = "Male" if student['gender'] == 'M' else "Female" if student['gender'] == 'F' else student['gender']
-            pdf.set_font("helvetica", "B", 11)
-            pdf.set_text_color(*PDFConstants.SECONDARY_COLOR)
-            pdf.cell(col1, 6, "Gender:", 0, 0, 'L')
+            self.set_font(PDFConstants.BOLD_FONT, "B", 10)
+            self.set_text_color(*self.soft_secondary)
+            self.cell(40, line_height, "Gender:", 0, 0, 'L')
             
-            pdf.set_font("helvetica", "", 11)
-            pdf.set_text_color(0, 0, 0)
-            pdf.cell(col2, 6, gender_display, 0, 0, 'L')
+            self.set_font(PDFConstants.DEFAULT_FONT, "", 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, line_height, gender_display, 0, 1, 'L')
         
+        # Class
         if 'class' in student:
-            pdf.set_font("helvetica", "B", 11)
-            pdf.set_text_color(*PDFConstants.SECONDARY_COLOR)
-            pdf.cell(col3, 6, "Class:", 0, 0, 'L')
+            self.set_font(PDFConstants.BOLD_FONT, "B", 10)
+            self.set_text_color(*self.soft_secondary)
+            self.cell(40, line_height, "Class:", 0, 0, 'L')
             
-            pdf.set_font("helvetica", "", 11)
-            pdf.set_text_color(0, 0, 0)
-            pdf.cell(col4, 6, student['class'], 0, 1, 'L')
-        else:
-            pdf.ln(6)
+            self.set_font(PDFConstants.DEFAULT_FONT, "", 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, line_height, student['class'], 0, 1, 'L')
         
-        pdf.ln(8)
-        self._add_separator(pdf)
-        pdf.ln(5)
+        # Year (if available)
+        if 'year' in student:
+            self.set_font(PDFConstants.BOLD_FONT, "B", 10)
+            self.set_text_color(*self.soft_secondary)
+            self.cell(40, line_height, "Year:", 0, 0, 'L')
+            
+            self.set_font(PDFConstants.DEFAULT_FONT, "", 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, line_height, student['year'], 0, 1, 'L')
+        
+        self.ln(8)
+        self._add_soft_separator()
+        self.ln(5)
     
-    def _build_summary_table_with_headers(self, pdf, summary: Dict[str, Any]):
-        """Build academic summary table WITH HEADERS"""
-        pdf.set_font("helvetica", "B", 12)
-        pdf.set_text_color(*PDFConstants.PRIMARY_COLOR)
-        pdf.cell(0, 8, "ACADEMIC PERFORMANCE SUMMARY", 0, 1, 'L')
-        pdf.ln(3)
+    def _build_clean_summary_table(self, summary: Dict[str, Any]):
+        """Build clean academic summary table"""
+        self.set_font(PDFConstants.BOLD_FONT, "B", 11)
+        self.set_text_color(*self.soft_primary)
+        self.cell(0, 7, "ACADEMIC PERFORMANCE SUMMARY", 0, 1, 'L')
+        self.ln(3)
         
-        # ===== TABLE WITH HEADERS =====
-        # Define column widths for landscape (more space)
-        col_widths = [45, 45, 45, 45, 45, 45]  # 6 columns for landscape
+        # ===== CLEAN TABLE WITH HEADERS =====
+        # Define column widths
+        col_widths = [50, 50, 50, 50]  # 4 columns only
         
-        # Table headers
-        headers = ["TOTAL MARKS", "AVERAGE SCORE", "GRADE", "POSITION", "STATUS", "SUBJECTS PASSED"]
+        # Table headers (SOFT COLORS)
+        headers = ["TOTAL MARKS", "AVERAGE SCORE", "GRADE", "POSITION"]
         
-        # Draw header row with color
-        pdf.set_fill_color(*PDFConstants.PRIMARY_COLOR)
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font("helvetica", "B", 10)
+        # Draw header row with SOFT color
+        self.set_fill_color(*self.soft_primary)
+        self.set_text_color(255, 255, 255)
+        self.set_font(PDFConstants.BOLD_FONT, "B", 9)
         
         for i, header in enumerate(headers):
-            pdf.cell(col_widths[i], 8, header, 1, 0, 'C', 1)
-        pdf.ln()
+            self.cell(col_widths[i], 7, header, 1, 0, 'C', 1)
+        self.ln()
         
         # Prepare values
         total_marks = f"{summary.get('total', 0):.0f}" if 'total' in summary else "N/A"
         average_score = f"{summary.get('average', 0):.1f}%" if 'average' in summary else "N/A"
         grade = summary.get('grade', 'N/A')
         position = str(summary.get('rank', 'N/A')) if 'rank' in summary else "N/A"
-        status = summary.get('status', 'N/A')
         
-        # Subjects passed
-        if 'subjects_passed' in summary and 'subjects_total' in summary:
-            passed = summary['subjects_passed']
-            total = summary['subjects_total']
-            subjects_passed = f"{passed}/{total}"
-        else:
-            subjects_passed = "N/A"
+        values = [total_marks, average_score, grade, position]
         
-        values = [total_marks, average_score, grade, position, status, subjects_passed]
-        
-        # Draw data row
-        pdf.set_fill_color(*PDFConstants.LIGHT_COLOR)
-        pdf.set_text_color(0, 0, 0)
-        pdf.set_font("helvetica", "B", 11)
+        # Draw data row with SOFT light color
+        self.set_fill_color(*self.soft_light)
+        self.set_text_color(0, 0, 0)
+        self.set_font(PDFConstants.DEFAULT_FONT, "B", 10)
         
         for i, value in enumerate(values):
-            # Special formatting for certain columns
+            # Soft color coding for GRADE
             if i == 2:  # GRADE column
                 if value in ["A", "B", "C", "I", "II", "III"]:
-                    pdf.set_text_color(*PDFConstants.SUCCESS_COLOR)
+                    self.set_text_color(*self.soft_success)
                 elif value in ["D", "E", "F"]:
-                    pdf.set_text_color(*PDFConstants.DANGER_COLOR)
+                    self.set_text_color(*self.soft_danger)
                 else:
-                    pdf.set_text_color(*PDFConstants.PRIMARY_COLOR)
+                    self.set_text_color(0, 0, 0)
             
-            elif i == 4:  # STATUS column
-                if value == "PASS":
-                    pdf.set_text_color(*PDFConstants.SUCCESS_COLOR)
-                elif value == "FAIL":
-                    pdf.set_text_color(*PDFConstants.DANGER_COLOR)
-                else:
-                    pdf.set_text_color(0, 0, 0)
-            
-            pdf.cell(col_widths[i], 8, value, 1, 0, 'C', 1)
-            pdf.set_text_color(0, 0, 0)  # Reset color
+            self.cell(col_widths[i], 7, value, 1, 0, 'C', 1)
+            self.set_text_color(0, 0, 0)  # Reset color
         
-        pdf.ln()
+        self.ln()
         
-        # ===== ADDITIONAL METRICS ROW (if available) =====
-        additional_metrics = []
+        # ===== SECOND ROW FOR ADDITIONAL METRICS =====
+        additional_headers = []
+        additional_values = []
         
+        # STATUS
+        if 'status' in summary:
+            additional_headers.append("STATUS")
+            status_value = summary['status']
+            additional_values.append(status_value)
+        
+        # DIVISION
         if 'division' in summary and summary['division']:
-            additional_metrics.append(("DIVISION", summary['division']))
+            additional_headers.append("DIVISION")
+            additional_values.append(summary['division'])
         
+        # POINTS (for ACSEE/CSEE)
         if 'points' in summary and summary['points'] is not None:
-            additional_metrics.append(("POINTS", str(summary['points'])))
+            if self.system_rule in ['acsee', 'csee']:
+                additional_headers.append("POINTS")
+                additional_values.append(str(summary['points']))
         
+        # Draw second row if we have additional metrics
+        if additional_headers:
+            self.ln(1)
+            
+            # Adjust column widths for second row
+            if len(additional_headers) == 1:
+                sec_col_widths = [100, 100]
+                # Center single item
+                self.set_fill_color(*self.soft_light)
+                self.set_font(PDFConstants.DEFAULT_FONT, "B", 10)
+                
+                # Color for STATUS
+                if additional_headers[0] == "STATUS":
+                    if additional_values[0] == "PASS":
+                        self.set_text_color(*self.soft_success)
+                    elif additional_values[0] == "FAIL":
+                        self.set_text_color(*self.soft_danger)
+                
+                self.cell(100, 7, additional_headers[0], 1, 0, 'C', 1)
+                self.cell(100, 7, additional_values[0], 1, 1, 'C', 1)
+                self.set_text_color(0, 0, 0)
+            
+            elif len(additional_headers) == 2:
+                sec_col_widths = [50, 50, 50, 50]
+                self.set_fill_color(*self.soft_light)
+                self.set_font(PDFConstants.DEFAULT_FONT, "B", 10)
+                
+                for i in range(4):
+                    if i < len(additional_headers):
+                        # Color coding
+                        if additional_headers[i] == "STATUS":
+                            if additional_values[i] == "PASS":
+                                self.set_text_color(*self.soft_success)
+                            elif additional_values[i] == "FAIL":
+                                self.set_text_color(*self.soft_danger)
+                        
+                        self.cell(sec_col_widths[i], 7, additional_headers[i], 1, 0, 'C', 1)
+                        self.set_text_color(0, 0, 0)
+                    else:
+                        self.cell(sec_col_widths[i], 7, "", 1, 0, 'C', 1)
+                
+                self.ln()
+                
+                # Values row
+                self.set_fill_color(255, 255, 255)
+                for i in range(4):
+                    if i < len(additional_values):
+                        # Color coding
+                        if i < len(additional_headers) and additional_headers[i] == "STATUS":
+                            if additional_values[i] == "PASS":
+                                self.set_text_color(*self.soft_success)
+                            elif additional_values[i] == "FAIL":
+                                self.set_text_color(*self.soft_danger)
+                        
+                        self.cell(sec_col_widths[i], 7, additional_values[i], 1, 0, 'C', 1)
+                        self.set_text_color(0, 0, 0)
+                    else:
+                        self.cell(sec_col_widths[i], 7, "", 1, 0, 'C', 1)
+                
+                self.ln()
+        
+        # ACSEE specific: Principals (if exists, add as note)
         if self.system_rule == 'acsee' and 'principals' in summary:
-            additional_metrics.append(("PRINCIPALS", str(summary['principals'])))
-        
-        if additional_metrics:
-            pdf.ln(2)
-            pdf.set_font("helvetica", "B", 10)
-            pdf.set_text_color(*PDFConstants.SECONDARY_COLOR)
-            pdf.cell(0, 6, "ADDITIONAL METRICS:", 0, 1, 'L')
-            
-            # Draw additional metrics
-            pdf.set_font("helvetica", "", 10)
-            pdf.set_text_color(0, 0, 0)
-            
-            metric_texts = []
-            for label, value in additional_metrics:
-                metric_texts.append(f"{label}: {value}")
-            
-            pdf.cell(0, 6, " | ".join(metric_texts), 0, 1, 'L')
+            self.ln(2)
+            self.set_font(PDFConstants.DEFAULT_FONT, "", 9)
+            self.set_text_color(*self.soft_secondary)
+            self.cell(0, 6, f"Principals: {summary['principals']}", 0, 1, 'L')
         
         # Remarks
         if 'remark' in summary and summary['remark']:
-            pdf.ln(5)
-            pdf.set_font("helvetica", "B", 10)
-            pdf.set_text_color(*PDFConstants.PRIMARY_COLOR)
-            pdf.cell(30, 6, "REMARKS:", 0, 0, 'L')
+            self.ln(4)
+            self.set_font(PDFConstants.ITALIC_FONT, "I", 9)
+            self.set_text_color(*self.soft_secondary)
             
-            pdf.set_font("helvetica", "I", 9)
-            pdf.set_text_color(*PDFConstants.SECONDARY_COLOR)
             remark = summary['remark']
-            if len(remark) > 100:
-                remark = remark[:97] + "..."
-            pdf.cell(0, 6, remark, 0, 1, 'L')
+            if len(remark) > 80:
+                remark = remark[:77] + "..."
+            
+            self.multi_cell(0, 5, f"Remarks: {remark}", 0, 'L')
         
-        pdf.ln(10)
-        self._add_separator(pdf)
-        pdf.ln(5)
+        self.ln(8)
+        self._add_soft_separator()
+        self.ln(5)
     
-    def _build_landscape_subjects_table(self, pdf, subjects):
-        """Build subjects table for landscape"""
-        pdf.set_font("helvetica", "B", 12)
-        pdf.set_text_color(*PDFConstants.PRIMARY_COLOR)
-        pdf.cell(0, 8, "SUBJECT PERFORMANCE DETAILS", 0, 1, 'L')
-        pdf.ln(3)
+    def _build_clean_subjects_table(self, subjects):
+        """Build clean subjects table"""
+        self.set_font(PDFConstants.BOLD_FONT, "B", 11)
+        self.set_text_color(*self.soft_primary)
+        self.cell(0, 7, "SUBJECT PERFORMANCE", 0, 1, 'L')
+        self.ln(3)
         
         # Prepare subjects list
         subjects_list = []
@@ -336,166 +369,125 @@ class StudentReportGenerator(BasePDFTemplate):
         # Sort by subject name
         subjects_list.sort(key=lambda x: x.get('name', ''))
         
-        # Determine table headers based on system
+        # Determine table headers based on system (SIMPLIFIED)
         if self.system_rule == 'acsee':
-            headers = ["NO.", "SUBJECT", "MARKS", "GRADE", "POINTS", "STATUS"]
-            col_widths = [15, 80, 30, 30, 30, 40]
+            headers = ["NO.", "SUBJECT", "MARKS", "GRADE", "POINTS"]
+            col_widths = [12, 85, 30, 30, 30]
         elif self.system_rule == 'csee':
-            headers = ["NO.", "SUBJECT", "MARKS", "GRADE", "POINTS", "RANK"]
-            col_widths = [15, 80, 30, 30, 30, 30]
+            headers = ["NO.", "SUBJECT", "MARKS", "GRADE", "POINTS"]
+            col_widths = [12, 85, 30, 30, 30]
         elif self.system_rule == 'plse':
-            headers = ["NO.", "SUBJECT", "MARKS", "GRADE", "STATUS", "RANK"]
-            col_widths = [15, 80, 30, 30, 40, 30]
-        else:
             headers = ["NO.", "SUBJECT", "MARKS", "GRADE", "STATUS"]
-            col_widths = [15, 100, 40, 40, 60]
+            col_widths = [12, 85, 30, 30, 40]
+        else:
+            headers = ["NO.", "SUBJECT", "MARKS", "GRADE"]
+            col_widths = [12, 105, 40, 40]
         
-        # Draw header
-        pdf.set_fill_color(*PDFConstants.PRIMARY_COLOR)
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font("helvetica", "B", 10)
+        # Draw header with SOFT color
+        self.set_fill_color(*self.soft_primary)
+        self.set_text_color(255, 255, 255)
+        self.set_font(PDFConstants.BOLD_FONT, "B", 9)
         
         for i, header in enumerate(headers):
-            pdf.cell(col_widths[i], 8, header, 1, 0, 'C', 1)
-        pdf.ln()
+            self.cell(col_widths[i], 7, header, 1, 0, 'C', 1)
+        self.ln()
         
         # Draw table data
-        pdf.set_text_color(0, 0, 0)
-        pdf.set_font("helvetica", "", 9)
+        self.set_text_color(0, 0, 0)
+        self.set_font(PDFConstants.DEFAULT_FONT, "", 9)
         
         for idx, subject in enumerate(subjects_list, 1):
-            # Alternate row colors
+            # Alternate row colors (SOFT)
             if idx % 2 == 0:
-                pdf.set_fill_color(255, 255, 255)
+                self.set_fill_color(255, 255, 255)
             else:
-                pdf.set_fill_color(*PDFConstants.LIGHT_COLOR)
+                self.set_fill_color(*self.soft_light)
             
             # Get data
             name = subject.get('name', 'N/A')
             marks = subject.get('marks', subject.get('score', 0))
             grade = subject.get('grade', 'N/A')
             points = subject.get('points', '')
-            rank = subject.get('subject_rank', '')
             attended = subject.get('attended', True)
             passed = subject.get('pass', subject.get('pass', True))
             
             # Truncate long subject names
-            name_display = name[:35] + '...' if len(name) > 35 else name
+            name_display = name[:30] + '...' if len(name) > 30 else name
             
-            # Draw row based on system
-            if self.system_rule == 'acsee':
-                # ACSEE row
-                if not attended:
-                    marks_text = "ABS"
-                    grade_text = "ABS"
-                    points_text = "ABS"
-                    status = "ABSENT"
-                elif not passed:
-                    marks_text = f"{marks:.0f}" if marks else "0"
-                    grade_text = grade
-                    points_text = str(points) if points else "0"
-                    status = "FAIL"
-                else:
-                    marks_text = f"{marks:.0f}" if marks else "0"
-                    grade_text = grade
-                    points_text = str(points) if points else "0"
-                    status = "PASS"
-                
-                pdf.cell(col_widths[0], 7, str(idx), 1, 0, 'C', 1)
-                pdf.cell(col_widths[1], 7, name_display, 1, 0, 'L', 1)
-                pdf.cell(col_widths[2], 7, marks_text, 1, 0, 'C', 1)
-                pdf.cell(col_widths[3], 7, grade_text, 1, 0, 'C', 1)
-                pdf.cell(col_widths[4], 7, points_text, 1, 0, 'C', 1)
-                
-                # Color code status
-                if status == "ABSENT":
-                    pdf.set_text_color(*PDFConstants.DANGER_COLOR)
-                elif status == "FAIL":
-                    pdf.set_text_color(*PDFConstants.WARNING_COLOR)
-                
-                pdf.cell(col_widths[5], 7, status, 1, 1, 'C', 1)
-                pdf.set_text_color(0, 0, 0)
+            # Draw row
+            self.cell(col_widths[0], 6, str(idx), 1, 0, 'C', 1)
+            self.cell(col_widths[1], 6, name_display, 1, 0, 'L', 1)
             
-            elif self.system_rule == 'csee':
-                # CSEE row
-                if not attended:
-                    marks_text = "ABS"
-                    grade_text = "ABS"
-                    points_text = "ABS"
-                    rank_text = "N/A"
-                else:
-                    marks_text = f"{marks:.0f}" if marks else "0"
-                    grade_text = grade
-                    points_text = str(points) if points else "0"
-                    rank_text = str(rank) if rank else ''
-                
-                pdf.cell(col_widths[0], 7, str(idx), 1, 0, 'C', 1)
-                pdf.cell(col_widths[1], 7, name_display, 1, 0, 'L', 1)
-                pdf.cell(col_widths[2], 7, marks_text, 1, 0, 'C', 1)
-                pdf.cell(col_widths[3], 7, grade_text, 1, 0, 'C', 1)
-                pdf.cell(col_widths[4], 7, points_text, 1, 0, 'C', 1)
-                pdf.cell(col_widths[5], 7, rank_text, 1, 1, 'C', 1)
-            
-            elif self.system_rule == 'plse':
-                # PLSE row
-                status = "PASS" if passed else "FAIL"
-                marks_text = f"{marks:.0f}" if marks else "0"
-                rank_text = str(rank) if rank else ''
-                
-                pdf.cell(col_widths[0], 7, str(idx), 1, 0, 'C', 1)
-                pdf.cell(col_widths[1], 7, name_display, 1, 0, 'L', 1)
-                pdf.cell(col_widths[2], 7, marks_text, 1, 0, 'C', 1)
-                pdf.cell(col_widths[3], 7, grade, 1, 0, 'C', 1)
-                
-                # Color code status
-                if status == "FAIL":
-                    pdf.set_text_color(*PDFConstants.DANGER_COLOR)
-                
-                pdf.cell(col_widths[4], 7, status, 1, 0, 'C', 1)
-                pdf.set_text_color(0, 0, 0)
-                pdf.cell(col_widths[5], 7, rank_text, 1, 1, 'C', 1)
-            
+            # Marks (handle ABSENT)
+            if not attended:
+                marks_text = "ABS"
+                grade_text = "ABS"
+                points_text = "ABS" if self.system_rule in ['acsee', 'csee'] else ""
             else:
-                # Generic row
-                status = "PASS" if passed else "FAIL"
                 marks_text = f"{marks:.0f}" if marks else "0"
-                
-                pdf.cell(col_widths[0], 7, str(idx), 1, 0, 'C', 1)
-                pdf.cell(col_widths[1], 7, name_display, 1, 0, 'L', 1)
-                pdf.cell(col_widths[2], 7, marks_text, 1, 0, 'C', 1)
-                pdf.cell(col_widths[3], 7, grade, 1, 0, 'C', 1)
-                
-                if status == "FAIL":
-                    pdf.set_text_color(*PDFConstants.DANGER_COLOR)
-                
-                pdf.cell(col_widths[4], 7, status, 1, 1, 'C', 1)
-                pdf.set_text_color(0, 0, 0)
+                grade_text = grade
+                points_text = str(points) if points else ""
+            
+            self.cell(col_widths[2], 6, marks_text, 1, 0, 'C', 1)
+            
+            # Grade with SOFT color coding
+            if grade_text == "ABS":
+                self.set_text_color(*self.soft_danger)
+            elif grade_text in ["A", "B", "C", "I", "II", "III"]:
+                self.set_text_color(*self.soft_success)
+            elif grade_text in ["D", "E", "F"]:
+                self.set_text_color(*self.soft_danger)
+            
+            self.cell(col_widths[3], 6, grade_text, 1, 0, 'C', 1)
+            self.set_text_color(0, 0, 0)
+            
+            # Last column
+            if len(headers) > 4:
+                if headers[4] == "POINTS":
+                    self.cell(col_widths[4], 6, points_text, 1, 1, 'C', 1)
+                elif headers[4] == "STATUS":
+                    status = "PASS" if passed else "FAIL"
+                    if status == "FAIL":
+                        self.set_text_color(*self.soft_danger)
+                    self.cell(col_widths[4], 6, status, 1, 1, 'C', 1)
+                    self.set_text_color(0, 0, 0)
+            else:
+                self.ln()
         
-        pdf.ln(5)
+        self.ln(5)
     
-    def _build_landscape_footer(self, pdf, class_info: Dict[str, Any]):
-        """Build footer for landscape"""
-        self._add_separator(pdf)
+    def _build_clean_footer(self, class_info: Dict[str, Any]):
+        """Build clean footer"""
+        self._add_soft_separator()
         
-        pdf.set_font("helvetica", "", 9)
-        pdf.set_text_color(*PDFConstants.SECONDARY_COLOR)
+        self.set_font(PDFConstants.DEFAULT_FONT, "", 9)
+        self.set_text_color(*self.soft_secondary)
         
         # Generation info
         date_printed = datetime.now().strftime("%d/%m/%Y %H:%M")
-        pdf.cell(0, 5, f"Generated on: {date_printed}", 0, 1, 'L')
+        self.cell(0, 5, f"Generated on: {date_printed}", 0, 1, 'L')
         
-        # System info
+        # Class info
+        class_name = class_info.get('class_name', '')
+        term = class_info.get('term', '')
+        
+        if class_name:
+            self.cell(0, 5, f"Class: {class_name}", 0, 1, 'L')
+        
+        # System
         system_label = self._get_system_label()
-        pdf.cell(0, 5, f"System: {system_label}", 0, 1, 'L')
+        self.cell(0, 5, f"System: {system_label}", 0, 1, 'L')
         
-        # Confidential notice
+        # Confidential notice (soft)
         if self.config.get('confidential', True):
-            pdf.set_font("helvetica", "I", 8)
-            pdf.cell(0, 5, "Confidential - For official use only", 0, 1, 'C')
+            self.set_font(PDFConstants.ITALIC_FONT, "I", 8)
+            self.set_text_color(*self.soft_secondary)
+            self.cell(0, 5, "Confidential - For official use only", 0, 1, 'C')
     
-    def _add_separator(self, pdf):
-        """Add separator line"""
-        pdf.line(15, pdf.get_y(), 285, pdf.get_y())  # 285mm for landscape width
+    def _add_soft_separator(self):
+        """Add soft separator line"""
+        self.line(15, self.get_y(), 195, self.get_y())
+        self.ln(3)
     
     def _create_error_pdf(self, error_message: str) -> str:
         """Create error PDF file"""
@@ -504,15 +496,15 @@ class StudentReportGenerator(BasePDFTemplate):
         filename = generate_filename("error", "student_report")
         filepath = get_temp_path(filename)
         
-        pdf = FPDF(orientation='L')  # Landscape for error too
+        pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("helvetica", "B", 14)
-        pdf.set_text_color(*PDFConstants.DANGER_COLOR)
-        pdf.cell(0, 10, "Error Generating Report", 0, 1, 'C')
+        pdf.set_font("helvetica", "B", 12)
+        pdf.set_text_color(*self.soft_danger)
+        pdf.cell(0, 8, "Error Generating Report", 0, 1, 'C')
         
-        pdf.set_font("helvetica", "", 11)
+        pdf.set_font("helvetica", "", 10)
         pdf.set_text_color(0, 0, 0)
-        pdf.multi_cell(0, 8, f"Error: {error_message[:200]}")
+        pdf.multi_cell(0, 6, f"Error: {error_message[:150]}")
         
         pdf.output(filepath)
         return filepath
@@ -525,7 +517,7 @@ class ACSEEReportGenerator(StudentReportGenerator):
     def __init__(self, config: dict = None):
         config = config or {}
         config['system_rule'] = 'acsee'
-        config['system_name'] = config.get('system_name', 'ADVANCED LEVEL (ACSEE)')
+        config['system_name'] = config.get('system_name', 'Advanced Level (ACSEE)')
         super().__init__(config)
 
 class CSEEReportGenerator(StudentReportGenerator):
@@ -533,7 +525,7 @@ class CSEEReportGenerator(StudentReportGenerator):
     def __init__(self, config: dict = None):
         config = config or {}
         config['system_rule'] = 'csee'
-        config['system_name'] = config.get('system_name', 'ORDINARY LEVEL (CSEE)')
+        config['system_name'] = config.get('system_name', 'Ordinary Level (CSEE)')
         super().__init__(config)
 
 class PLSEReportGenerator(StudentReportGenerator):
@@ -541,7 +533,7 @@ class PLSEReportGenerator(StudentReportGenerator):
     def __init__(self, config: dict = None):
         config = config or {}
         config['system_rule'] = 'plse'
-        config['system_name'] = config.get('system_name', 'PRIMARY LEVEL (PLSE)')
+        config['system_name'] = config.get('system_name', 'Primary Level (PLSE)')
         super().__init__(config)
 
 class GenericReportGenerator(StudentReportGenerator):
@@ -549,5 +541,5 @@ class GenericReportGenerator(StudentReportGenerator):
     def __init__(self, config: dict = None):
         config = config or {}
         config['system_rule'] = config.get('system_rule', 'generic')
-        config['system_name'] = config.get('system_name', 'ACADEMIC REPORT')
+        config['system_name'] = config.get('system_name', 'Academic Report')
         super().__init__(config)
