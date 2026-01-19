@@ -1,5 +1,5 @@
 """
-Student Report Generator - All systems in one file
+Student Report Generator - COMPACT VERSION
 """
 import os
 import tempfile
@@ -11,10 +11,8 @@ from ..base.utils import generate_filename, get_temp_path
 from ..base.constants import PDFConstants
 
 
-# ========== BASE GENERATOR ==========
-
 class StudentReportGenerator(BasePDFTemplate):
-    """Base student report generator - detects system automatically"""
+    """Base student report generator - COMPACT DESIGN"""
     
     def __init__(self, config: dict = None):
         super().__init__(config)
@@ -25,7 +23,7 @@ class StudentReportGenerator(BasePDFTemplate):
                  student_data: Dict[str, Any],
                  class_info: Dict[str, Any] = None,
                  school_info: Dict[str, Any] = None) -> str:
-        """Generate student report PDF"""
+        """Generate student report PDF - COMPACT"""
         try:
             # Generate filename
             student = student_data.get('student', {})
@@ -39,7 +37,7 @@ class StudentReportGenerator(BasePDFTemplate):
             filepath = get_temp_path(filename)
             
             # Build PDF based on system
-            self._build_document(student_data, class_info or {}, school_info or {})
+            self._build_compact_document(student_data, class_info or {}, school_info or {})
             
             # Output PDF
             self.output(filepath)
@@ -48,340 +46,173 @@ class StudentReportGenerator(BasePDFTemplate):
         except Exception as e:
             return self._create_error_pdf(str(e))
     
-    def _build_document(self, student_data: Dict[str, Any], 
-                        class_info: Dict[str, Any], 
-                        school_info: Dict[str, Any]):
-        """Build complete document"""
+    def _build_compact_document(self, student_data: Dict[str, Any], 
+                                class_info: Dict[str, Any], 
+                                school_info: Dict[str, Any]):
+        """Build COMPACT document"""
         # Detect system from class_info if not in config
         if not self.system_rule and 'rule' in class_info:
             self.system_rule = class_info['rule'].lower()
         
-        # Build based on system
-        if self.system_rule in ['acsee', 'advanced', 'a-level']:
-            self._build_acsee_document(student_data, class_info, school_info)
-        elif self.system_rule in ['csee', 'certificate', 'o-level']:
-            self._build_csee_document(student_data, class_info, school_info)
-        elif self.system_rule in ['plse', 'primary', 'standard']:
-            self._build_plse_document(student_data, class_info, school_info)
-        else:
-            self._build_generic_document(student_data, class_info, school_info)
-    
-    # ========== ACSEE (A-Level) ==========
-    
-    def _build_acsee_document(self, student_data, class_info, school_info):
-        """Build ACSEE (Advanced Level) report"""
-        # Header
-        self._build_system_header(school_info, "ADVANCED LEVEL (ACSEE)")
+        # ===== HEADER SECTION =====
+        self._build_compact_header(school_info, class_info)
         
-        # Title
-        self._build_exam_title(class_info, "ACSEE")
+        # ===== STUDENT INFO (HORIZONTAL) =====
+        self._build_horizontal_student_info(student_data.get('student', {}))
         
-        # Student Info
-        self._build_student_info(student_data.get('student', {}))
-        
-        # Summary with ACSEE specific fields
+        # ===== ACADEMIC SUMMARY (COMPACT TABLE) =====
         summary = student_data.get('summary', {})
-        self.add_subtitle("ACADEMIC SUMMARY - ADVANCED LEVEL", 12)
+        self._build_compact_summary(summary)
         
-        acsee_summary = [
-            ("Total Marks", f"{summary.get('total', 0):.0f}"),
-            ("Average Score", f"{summary.get('average', 0):.1f}%"),
-            ("Grade", summary.get('grade', 'N/A')),
-            ("Division", summary.get('division', 'N/A')),
-            ("Points", str(summary.get('points', 'N/A'))),
-            ("Principals", str(summary.get('principals', 'N/A'))),
-            ("Rank", str(summary.get('rank', 'N/A'))),
-            ("Status", summary.get('status', 'PASS'))
-        ]
-        
-        self._draw_summary_table(acsee_summary)
-        
-        # Subjects
+        # ===== SUBJECTS TABLE =====
         if 'subjects' in student_data:
-            self._build_acsee_subjects_table(student_data['subjects'])
+            self._build_compact_subjects_table(student_data['subjects'])
         
-        # Footer
-        self._build_footer(class_info, "ACSEE - Advanced Certificate of Secondary Education")
+        # ===== FOOTER =====
+        self._build_compact_footer(class_info)
     
-    # ========== CSEE (O-Level) ==========
-    
-    def _build_csee_document(self, student_data, class_info, school_info):
-        """Build CSEE (Ordinary Level) report"""
-        # Header
-        self._build_system_header(school_info, "ORDINARY LEVEL (CSEE)")
-        
-        # Title
-        self._build_exam_title(class_info, "CSEE")
-        
-        # Student Info
-        self._build_student_info(student_data.get('student', {}))
-        
-        # Summary with CSEE specific fields
-        summary = student_data.get('summary', {})
-        self.add_subtitle("ACADEMIC SUMMARY - ORDINARY LEVEL", 12)
-        
-        csee_summary = [
-            ("Total Marks", f"{summary.get('total', 0):.0f}"),
-            ("Average Score", f"{summary.get('average', 0):.1f}%"),
-            ("Grade", summary.get('grade', 'N/A')),
-            ("Division", summary.get('division', 'N/A')),
-            ("Points", str(summary.get('points', 'N/A'))),
-            ("Rank", str(summary.get('rank', 'N/A'))),
-            ("Status", summary.get('status', 'PASS')),
-            ("Subjects Passed", f"{summary.get('subjects_passed', 0)}/{summary.get('subjects_total', 0)}")
-        ]
-        
-        self._draw_summary_table(csee_summary)
-        
-        # Subjects
-        if 'subjects' in student_data:
-            self._build_csee_subjects_table(student_data['subjects'])
-        
-        # Footer
-        self._build_footer(class_info, "CSEE - Certificate of Secondary Education")
-    
-    # ========== PLSE (Primary) ==========
-    
-    def _build_plse_document(self, student_data, class_info, school_info):
-        """Build PLSE (Primary Level) report"""
-        # Header
-        self._build_system_header(school_info, "PRIMARY LEVEL (PLSE)")
-        
-        # Title
-        self._build_exam_title(class_info, "PLSE")
-        
-        # Student Info
-        self._build_student_info(student_data.get('student', {}))
-        
-        # Summary without divisions/points
-        summary = student_data.get('summary', {})
-        self.add_subtitle("ACADEMIC SUMMARY - PRIMARY LEVEL", 12)
-        
-        plse_summary = [
-            ("Total Marks", f"{summary.get('total', 0):.0f}"),
-            ("Average Score", f"{summary.get('average', 0):.1f}%"),
-            ("Grade", summary.get('grade', 'N/A')),
-            ("Rank", str(summary.get('rank', 'N/A'))),
-            ("Status", summary.get('status', 'PASS')),
-            ("Subjects Passed", f"{summary.get('subjects_passed', 0)}/{summary.get('subjects_total', 0)}")
-        ]
-        
-        self._draw_summary_table(plse_summary)
-        
-        # Note about PLSE system
-        self.ln(5)
-        self.set_font(PDFConstants.ITALIC_FONT, "I", 9)
-        self.set_text_color(*PDFConstants.SECONDARY_COLOR)
-        self.multi_cell(0, 4, "Note: PLSE uses letter grades (A-E) without divisions or points system.")
-        self.reset_styles()
-        
-        # Subjects
-        if 'subjects' in student_data:
-            self._build_plse_subjects_table(student_data['subjects'])
-        
-        # Footer
-        self._build_footer(class_info, "PLSE - Primary School Leaving Examination")
-    
-    # ========== GENERIC ==========
-    
-    def _build_generic_document(self, student_data, class_info, school_info):
-        """Build generic report for unknown systems"""
-        # Header
-        self._build_system_header(school_info, "ACADEMIC REPORT")
-        
-        # Title
-        self._build_exam_title(class_info, "EXAMINATION")
-        
-        # Student Info
-        self._build_student_info(student_data.get('student', {}))
-        
-        # Generic Summary
-        summary = student_data.get('summary', {})
-        self.add_subtitle("ACADEMIC SUMMARY", 12)
-        
-        generic_summary = []
-        
-        # Dynamically add available fields
-        if 'total' in summary:
-            generic_summary.append(("Total Marks", f"{summary['total']:.0f}"))
-        if 'average' in summary:
-            generic_summary.append(("Average", f"{summary['average']:.1f}%"))
-        if 'grade' in summary:
-            generic_summary.append(("Grade", summary['grade']))
-        if 'division' in summary:
-            generic_summary.append(("Division", summary['division']))
-        if 'points' in summary:
-            generic_summary.append(("Points", str(summary['points'])))
-        if 'rank' in summary:
-            generic_summary.append(("Rank", str(summary['rank'])))
-        if 'status' in summary:
-            generic_summary.append(("Status", summary['status']))
-        
-        if generic_summary:
-            self._draw_summary_table(generic_summary)
-        
-        # Subjects
-        if 'subjects' in student_data:
-            self._build_generic_subjects_table(student_data['subjects'])
-        
-        # System note if available
-        if 'system' in class_info:
-            self.ln(5)
-            self.set_font(PDFConstants.ITALIC_FONT, "I", 9)
-            self.set_text_color(*PDFConstants.SECONDARY_COLOR)
-            self.cell(0, 5, f"System: {class_info['system']}", 0, 1, 'R')
-        
-        # Footer
-        self._build_footer(class_info, "Academic Performance Report")
-    
-    # ========== COMMON BUILDING METHODS ==========
-    
-    def _build_system_header(self, school_info: Dict[str, Any], system_label: str):
-        """Build system-specific header"""
-        self.set_font(PDFConstants.BOLD_FONT, "B", 16)
+    def _build_compact_header(self, school_info: Dict[str, Any], class_info: Dict[str, Any]):
+        """Build COMPACT header"""
+        # School name
+        self.set_font(PDFConstants.BOLD_FONT, "B", 11)
         self.set_text_color(*PDFConstants.PRIMARY_COLOR)
         
         school_name = school_info.get('name', 'SCHOOL NAME')
-        self.cell(0, 10, school_name, 0, 1, 'C')
+        self.cell(0, 5, school_name, 0, 1, 'C')
         
-        self.set_font(PDFConstants.BOLD_FONT, "B", 12)
+        # System and exam
+        system_label = self._get_system_label()
+        exam_name = class_info.get('exam_name', 'EXAMINATION')
+        
+        self.set_font(PDFConstants.DEFAULT_FONT, "B", 9)
         self.set_text_color(*PDFConstants.SECONDARY_COLOR)
-        self.cell(0, 8, system_label, 0, 1, 'C')
+        self.cell(0, 4, f"{system_label} - {exam_name}", 0, 1, 'C')
         
-        if 'motto' in school_info:
-            self.set_font(PDFConstants.ITALIC_FONT, "I", 10)
-            self.cell(0, 8, school_info['motto'], 0, 1, 'C')
-        
-        self.ln(5)
-        self.add_separator()
-    
-    def _build_exam_title(self, class_info: Dict[str, Any], default_exam: str):
-        """Build exam title"""
-        exam_name = class_info.get('exam_name', default_exam)
+        # Class and term
         class_name = class_info.get('class_name', '')
         term = class_info.get('term', 'I')
         year = class_info.get('year', datetime.now().year)
         
-        title_parts = []
-        if exam_name:
-            title_parts.append(exam_name)
-        if class_name:
-            title_parts.append(class_name)
+        self.set_font(PDFConstants.DEFAULT_FONT, "", 8)
+        self.cell(0, 4, f"Class: {class_name} | Term: {term} | Year: {year}", 0, 1, 'C')
         
-        title = " - ".join(title_parts) if title_parts else "STUDENT REPORT"
-        
-        self.add_title(title, 14)
-        
-        # Subtitle
-        subtitle = f"TERM {term} - {year}"
-        self.set_font(PDFConstants.DEFAULT_FONT, "I", 11)
-        self.set_text_color(*PDFConstants.SECONDARY_COLOR)
-        self.cell(0, 8, subtitle, 0, 1, 'C')
-        self.ln(5)
+        self.ln(2)
+        self.add_separator()
+        self.ln(2)
     
-    def _build_student_info(self, student: Dict[str, Any]):
-        """Build student information section"""
-        self.add_subtitle("STUDENT INFORMATION", 12)
+    def _get_system_label(self):
+        """Get system label based on rule"""
+        if self.system_rule == 'acsee':
+            return "ADVANCED LEVEL (ACSEE)"
+        elif self.system_rule == 'csee':
+            return "ORDINARY LEVEL (CSEE)"
+        elif self.system_rule == 'plse':
+            return "PRIMARY LEVEL (PLSE)"
+        else:
+            return "ACADEMIC REPORT"
+    
+    def _build_horizontal_student_info(self, student: Dict[str, Any]):
+        """Build student info in HORIZONTAL layout"""
+        self.set_font(PDFConstants.BOLD_FONT, "B", 9)
+        self.set_text_color(*PDFConstants.PRIMARY_COLOR)
+        self.cell(40, 5, "STUDENT INFORMATION:", 0, 0, 'L')
         
-        info_lines = []
+        self.set_font(PDFConstants.DEFAULT_FONT, "", 8)
+        self.set_text_color(0, 0, 0)
+        
+        info_parts = []
         
         if 'name' in student:
-            info_lines.append(f"Name: {student['name']}")
+            info_parts.append(f"Name: {student['name']}")
         if 'admission' in student:
-            info_lines.append(f"Admission No: {student['admission']}")
+            info_parts.append(f"Adm: {student['admission']}")
         if 'gender' in student:
-            gender = student['gender']
-            if gender == 'M':
-                info_lines.append("Gender: Male")
-            elif gender == 'F':
-                info_lines.append("Gender: Female")
-            else:
-                info_lines.append(f"Gender: {gender}")
+            gender = 'M' if student['gender'] == 'M' else 'F' if student['gender'] == 'F' else student['gender']
+            info_parts.append(f"Gender: {gender}")
         if 'class' in student:
-            info_lines.append(f"Class: {student['class']}")
-        if 'stream' in student:
-            info_lines.append(f"Stream: {student['stream']}")
-        if 'year' in student:
-            info_lines.append(f"Year: {student['year']}")
+            info_parts.append(f"Class: {student['class']}")
         
-        if info_lines:
-            self.add_paragraph("\n".join(info_lines))
-            self.ln(5)
+        # Join with separator
+        info_text = " | ".join(info_parts)
+        self.cell(0, 5, info_text, 0, 1, 'L')
+        
+        self.ln(2)
     
-    def _draw_summary_table(self, summary_items: list):
-        """Draw summary table"""
-        if not summary_items:
-            return
+    def _build_compact_summary(self, summary: Dict[str, Any]):
+        """Build COMPACT academic summary (HORIZONTAL layout)"""
+        self.set_font(PDFConstants.BOLD_FONT, "B", 9)
+        self.set_text_color(*PDFConstants.PRIMARY_COLOR)
+        self.cell(40, 5, "ACADEMIC SUMMARY:", 0, 0, 'L')
         
-        col_widths = [70, 70]
+        self.set_font(PDFConstants.DEFAULT_FONT, "", 8)
+        self.set_text_color(0, 0, 0)
         
-        for i, (label, value) in enumerate(summary_items):
-            # Alternate row colors
-            if i % 2 == 0:
-                self.set_fill_color(*PDFConstants.LIGHT_COLOR)
-            else:
-                self.set_fill_color(255, 255, 255)
+        summary_parts = []
+        
+        # Always show these
+        if 'total' in summary:
+            summary_parts.append(f"Total: {summary['total']:.0f}")
+        if 'average' in summary:
+            summary_parts.append(f"Avg: {summary['average']:.1f}%")
+        if 'grade' in summary:
+            summary_parts.append(f"Grade: {summary['grade']}")
+        
+        # System-specific additions
+        if self.system_rule == 'acsee':
+            if 'division' in summary:
+                summary_parts.append(f"Div: {summary['division']}")
+            if 'points' in summary:
+                summary_parts.append(f"Points: {summary['points']}")
+            if 'principals' in summary:
+                summary_parts.append(f"Principals: {summary['principals']}")
+        
+        elif self.system_rule == 'csee':
+            if 'division' in summary:
+                summary_parts.append(f"Div: {summary['division']}")
+            if 'points' in summary:
+                summary_parts.append(f"Points: {summary['points']}")
+        
+        # Common fields
+        if 'rank' in summary:
+            summary_parts.append(f"Rank: {summary['rank']}")
+        if 'status' in summary:
+            summary_parts.append(f"Status: {summary['status']}")
+        
+        # Join with separator
+        summary_text = " | ".join(summary_parts)
+        
+        # Calculate if we need to wrap
+        text_width = self.get_string_width(summary_text)
+        if text_width > 150:  # If too long, split into two lines
+            # Find middle point
+            parts = summary_text.split(" | ")
+            mid = len(parts) // 2
+            line1 = " | ".join(parts[:mid])
+            line2 = " | ".join(parts[mid:])
             
-            # Set font
-            self.set_font(PDFConstants.DEFAULT_FONT, "", 10)
-            
-            # Highlight important items
-            if label in ["Grade", "Division", "Status"]:
-                self.set_font(PDFConstants.BOLD_FONT, "B", 10)
-            
-            # Draw cells
-            self.cell(col_widths[0], 8, label, 'LR', 0, 'L', 1)
-            self.cell(col_widths[1], 8, value, 'LR', 1, 'C', 1)
-        
-        # Close table borders
-        self.cell(sum(col_widths), 0, '', 'T', 1)
-        self.ln(10)
-    
-    def _build_acsee_subjects_table(self, subjects):
-        """Build ACSEE subjects table"""
-        self._build_subjects_table_common(subjects, system='acsee')
-    
-    def _build_csee_subjects_table(self, subjects):
-        """Build CSEE subjects table"""
-        self._build_subjects_table_common(subjects, system='csee')
-    
-    def _build_plse_subjects_table(self, subjects):
-        """Build PLSE subjects table"""
-        self._build_subjects_table_common(subjects, system='plse')
-    
-    def _build_generic_subjects_table(self, subjects):
-        """Build generic subjects table"""
-        self._build_subjects_table_common(subjects, system='generic')
-    
-    def _build_subjects_table_common(self, subjects, system='generic'):
-        """Common method to build subjects table"""
-        if not subjects:
-            return
-        
-        self.add_subtitle("SUBJECT PERFORMANCE", 12)
-        
-        # Determine headers based on system
-        if system == 'acsee':
-            headers = ["No.", "Subject", "Marks", "Grade", "Points", "Status"]
-            col_widths = [10, 70, 30, 25, 30, 35]
-        elif system == 'csee':
-            headers = ["No.", "Subject", "Marks", "Grade", "Points", "Rank"]
-            col_widths = [10, 70, 30, 25, 30, 25]
-        elif system == 'plse':
-            headers = ["No.", "Subject", "Marks", "Grade", "Status", "Rank"]
-            col_widths = [10, 70, 30, 25, 30, 25]
+            self.cell(0, 4, line1, 0, 1, 'L')
+            self.set_x(50)  # Indent second line
+            self.cell(0, 4, line2, 0, 1, 'L')
         else:
-            headers = ["No.", "Subject", "Marks", "Grade", "Status"]
-            col_widths = [10, 80, 40, 30, 40]
+            self.cell(0, 5, summary_text, 0, 1, 'L')
         
-        # Draw header
-        self.set_fill_color(*PDFConstants.PRIMARY_COLOR)
-        self.set_text_color(255, 255, 255)
-        self.set_font(PDFConstants.BOLD_FONT, "B", 10)
+        # Remark if available
+        if 'remark' in summary:
+            self.set_font(PDFConstants.ITALIC_FONT, "I", 8)
+            self.set_text_color(*PDFConstants.SECONDARY_COLOR)
+            self.cell(0, 4, f"Remarks: {summary['remark']}", 0, 1, 'L')
+            self.reset_styles()
         
-        for i, header in enumerate(headers):
-            self.cell(col_widths[i], 8, header, 1, 0, 'C', 1)
-        self.ln()
+        self.ln(3)
+        self.add_separator()
+        self.ln(2)
+    
+    def _build_compact_subjects_table(self, subjects):
+        """Build COMPACT subjects table"""
+        self.set_font(PDFConstants.BOLD_FONT, "B", 9)
+        self.set_text_color(*PDFConstants.PRIMARY_COLOR)
+        self.cell(0, 5, "SUBJECT PERFORMANCE:", 0, 1, 'L')
+        self.ln(1)
         
         # Prepare subjects list
         subjects_list = []
@@ -397,19 +228,42 @@ class StudentReportGenerator(BasePDFTemplate):
         # Sort by subject name
         subjects_list.sort(key=lambda x: x.get('name', ''))
         
-        # Draw table
-        self.set_text_color(0, 0, 0)
-        self.set_font(PDFConstants.DEFAULT_FONT, "", 9)
+        # Determine table layout based on system
+        if self.system_rule == 'acsee':
+            headers = ["Subject", "Marks", "Grade", "Points", "Status"]
+            col_widths = [70, 25, 25, 25, 45]
+        elif self.system_rule == 'csee':
+            headers = ["Subject", "Marks", "Grade", "Points", "Rank"]
+            col_widths = [70, 25, 25, 25, 35]
+        elif self.system_rule == 'plse':
+            headers = ["Subject", "Marks", "Grade", "Status", "Rank"]
+            col_widths = [70, 25, 25, 35, 30]
+        else:
+            headers = ["Subject", "Marks", "Grade", "Status"]
+            col_widths = [80, 30, 30, 50]
         
-        for idx, subject in enumerate(subjects_list, 1):
+        # Draw header
+        self.set_fill_color(*PDFConstants.PRIMARY_COLOR)
+        self.set_text_color(255, 255, 255)
+        self.set_font(PDFConstants.BOLD_FONT, "B", 8)
+        
+        for i, header in enumerate(headers):
+            self.cell(col_widths[i], 6, header, 1, 0, 'C', 1)
+        self.ln()
+        
+        # Draw table data
+        self.set_text_color(0, 0, 0)
+        self.set_font(PDFConstants.DEFAULT_FONT, "", 8)
+        
+        for idx, subject in enumerate(subjects_list):
             # Alternate row colors
             if idx % 2 == 0:
                 self.set_fill_color(*PDFConstants.LIGHT_COLOR)
             else:
                 self.set_fill_color(255, 255, 255)
             
-            # Get common data
-            name = subject.get('name', 'N/A')[:25]
+            # Get data
+            name = subject.get('name', 'N/A')
             marks = subject.get('marks', subject.get('score', 0))
             grade = subject.get('grade', 'N/A')
             points = subject.get('points', '')
@@ -417,28 +271,32 @@ class StudentReportGenerator(BasePDFTemplate):
             attended = subject.get('attended', True)
             passed = subject.get('pass', subject.get('pass', True))
             
-            # System-specific handling
-            if system == 'acsee':
-                # ACSEE: Show status based on attendance/pass
+            # Truncate long subject names
+            name_display = name[:20] + '...' if len(name) > 20 else name
+            
+            # Draw row based on system
+            if self.system_rule == 'acsee':
+                # ACSEE row
                 if not attended:
+                    marks_text = "ABS"
+                    grade_text = "ABS"
+                    points_text = "ABS"
                     status = "ABSENT"
-                    marks_text = "N/A"
-                    points_text = "N/A"
                 elif not passed:
+                    marks_text = f"{marks:.0f}" if marks else "0"
+                    grade_text = grade
+                    points_text = str(points) if points else "0"
                     status = "FAIL"
-                    marks_text = f"{marks:.1f}" if marks else "N/A"
-                    points_text = str(points) if points else "N/A"
                 else:
+                    marks_text = f"{marks:.0f}" if marks else "0"
+                    grade_text = grade
+                    points_text = str(points) if points else "0"
                     status = "PASS"
-                    marks_text = f"{marks:.1f}" if marks else "N/A"
-                    points_text = str(points) if points else "N/A"
                 
-                # Draw ACSEE row
-                self.cell(col_widths[0], 7, str(idx), 1, 0, 'C', 1)
-                self.cell(col_widths[1], 7, name, 1, 0, 'L', 1)
-                self.cell(col_widths[2], 7, marks_text, 1, 0, 'C', 1)
-                self.cell(col_widths[3], 7, grade, 1, 0, 'C', 1)
-                self.cell(col_widths[4], 7, points_text, 1, 0, 'C', 1)
+                self.cell(col_widths[0], 5, name_display, 1, 0, 'L', 1)
+                self.cell(col_widths[1], 5, marks_text, 1, 0, 'C', 1)
+                self.cell(col_widths[2], 5, grade_text, 1, 0, 'C', 1)
+                self.cell(col_widths[3], 5, points_text, 1, 0, 'C', 1)
                 
                 # Color code status
                 if status == "ABSENT":
@@ -446,93 +304,82 @@ class StudentReportGenerator(BasePDFTemplate):
                 elif status == "FAIL":
                     self.set_text_color(*PDFConstants.WARNING_COLOR)
                 
-                self.cell(col_widths[5], 7, status, 1, 1, 'C', 1)
+                self.cell(col_widths[4], 5, status, 1, 1, 'C', 1)
                 self.set_text_color(0, 0, 0)
             
-            elif system == 'csee':
-                # CSEE: Show ABS for absent, rank for present
+            elif self.system_rule == 'csee':
+                # CSEE row
                 if not attended:
                     marks_text = "ABS"
-                    grade = "ABS"
+                    grade_text = "ABS"
                     points_text = "ABS"
                     rank_text = "N/A"
                 else:
-                    marks_text = f"{marks:.1f}" if marks else "N/A"
-                    points_text = str(points) if points else "N/A"
+                    marks_text = f"{marks:.0f}" if marks else "0"
+                    grade_text = grade
+                    points_text = str(points) if points else "0"
                     rank_text = str(rank) if rank else ''
                 
-                # Draw CSEE row
-                self.cell(col_widths[0], 7, str(idx), 1, 0, 'C', 1)
-                self.cell(col_widths[1], 7, name, 1, 0, 'L', 1)
-                self.cell(col_widths[2], 7, marks_text, 1, 0, 'C', 1)
-                self.cell(col_widths[3], 7, grade, 1, 0, 'C', 1)
-                self.cell(col_widths[4], 7, points_text, 1, 0, 'C', 1)
-                self.cell(col_widths[5], 7, rank_text, 1, 1, 'C', 1)
+                self.cell(col_widths[0], 5, name_display, 1, 0, 'L', 1)
+                self.cell(col_widths[1], 5, marks_text, 1, 0, 'C', 1)
+                self.cell(col_widths[2], 5, grade_text, 1, 0, 'C', 1)
+                self.cell(col_widths[3], 5, points_text, 1, 0, 'C', 1)
+                self.cell(col_widths[4], 5, rank_text, 1, 1, 'C', 1)
             
-            elif system == 'plse':
-                # PLSE: Simple PASS/FAIL
+            elif self.system_rule == 'plse':
+                # PLSE row
                 status = "PASS" if passed else "FAIL"
-                marks_text = f"{marks:.1f}" if marks else "N/A"
+                marks_text = f"{marks:.0f}" if marks else "0"
                 rank_text = str(rank) if rank else ''
                 
-                # Draw PLSE row
-                self.cell(col_widths[0], 7, str(idx), 1, 0, 'C', 1)
-                self.cell(col_widths[1], 7, name, 1, 0, 'L', 1)
-                self.cell(col_widths[2], 7, marks_text, 1, 0, 'C', 1)
-                self.cell(col_widths[3], 7, grade, 1, 0, 'C', 1)
+                self.cell(col_widths[0], 5, name_display, 1, 0, 'L', 1)
+                self.cell(col_widths[1], 5, marks_text, 1, 0, 'C', 1)
+                self.cell(col_widths[2], 5, grade, 1, 0, 'C', 1)
                 
                 # Color code status
                 if status == "FAIL":
                     self.set_text_color(*PDFConstants.DANGER_COLOR)
                 
-                self.cell(col_widths[4], 7, status, 1, 0, 'C', 1)
+                self.cell(col_widths[3], 5, status, 1, 0, 'C', 1)
                 self.set_text_color(0, 0, 0)
-                self.cell(col_widths[5], 7, rank_text, 1, 1, 'C', 1)
+                self.cell(col_widths[4], 5, rank_text, 1, 1, 'C', 1)
             
             else:
-                # Generic: Simple display
+                # Generic row
                 status = "PASS" if passed else "FAIL"
-                marks_text = f"{marks:.1f}" if marks else "N/A"
+                marks_text = f"{marks:.0f}" if marks else "0"
                 
-                self.cell(col_widths[0], 7, str(idx), 1, 0, 'C', 1)
-                self.cell(col_widths[1], 7, name, 1, 0, 'L', 1)
-                self.cell(col_widths[2], 7, marks_text, 1, 0, 'C', 1)
-                self.cell(col_widths[3], 7, grade, 1, 0, 'C', 1)
+                self.cell(col_widths[0], 5, name_display, 1, 0, 'L', 1)
+                self.cell(col_widths[1], 5, marks_text, 1, 0, 'C', 1)
+                self.cell(col_widths[2], 5, grade, 1, 0, 'C', 1)
                 
                 if status == "FAIL":
                     self.set_text_color(*PDFConstants.DANGER_COLOR)
                 
-                self.cell(col_widths[4], 7, status, 1, 1, 'C', 1)
+                self.cell(col_widths[3], 5, status, 1, 1, 'C', 1)
                 self.set_text_color(0, 0, 0)
         
-        self.ln(10)
+        self.ln(3)
     
-    def _build_footer(self, class_info: Dict[str, Any], system_label: str):
-        """Build report footer"""
+    def _build_compact_footer(self, class_info: Dict[str, Any]):
+        """Build COMPACT footer"""
         self.add_separator()
         
-        self.set_font(PDFConstants.DEFAULT_FONT, "", 9)
+        self.set_font(PDFConstants.DEFAULT_FONT, "I", 7)
         self.set_text_color(*PDFConstants.SECONDARY_COLOR)
         
-        footer_lines = []
+        # System info
+        system_label = self._get_system_label()
+        self.cell(0, 3, f"System: {system_label}", 0, 1, 'L')
         
-        # Date printed
+        # Generation info
         date_printed = datetime.now().strftime("%d/%m/%Y %H:%M")
-        footer_lines.append(f"Printed on: {date_printed}")
+        self.cell(0, 3, f"Generated: {date_printed}", 0, 1, 'L')
         
-        # Class info
-        if 'class_name' in class_info:
-            footer_lines.append(f"Class: {class_info['class_name']}")
-        
-        if 'term' in class_info:
-            footer_lines.append(f"Term: {class_info['term']}")
-        
-        # System label
-        footer_lines.append(f"System: {system_label}")
-        
-        # Print footer lines
-        for line in footer_lines:
-            self.cell(0, 5, line, 0, 1, 'C')
+        # Confidential notice
+        if self.config.get('confidential', True):
+            self.set_font(PDFConstants.DEFAULT_FONT, "I", 6)
+            self.cell(0, 3, "Confidential - For official use only", 0, 1, 'C')
     
     def _create_error_pdf(self, error_message: str) -> str:
         """Create error PDF file"""
@@ -543,22 +390,19 @@ class StudentReportGenerator(BasePDFTemplate):
         
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("helvetica", "B", 14)
+        pdf.set_font("helvetica", "B", 11)
         pdf.set_text_color(*PDFConstants.DANGER_COLOR)
-        pdf.cell(0, 10, "Error Generating Report", 0, 1, 'C')
+        pdf.cell(0, 8, "Error Generating Report", 0, 1, 'C')
         
-        pdf.set_font("helvetica", "", 12)
+        pdf.set_font("helvetica", "", 9)
         pdf.set_text_color(0, 0, 0)
-        pdf.multi_cell(0, 8, f"Error details: {error_message[:200]}")
+        pdf.multi_cell(0, 5, f"Error: {error_message[:150]}")
         
         pdf.output(filepath)
         return filepath
 
 
-# ========== ALIAS CLASSES FOR FACTORY ==========
-
-# These are just aliases for the factory to use
-# All use the same StudentReportGenerator but with different configs
+# ========== ALIAS CLASSES (SAME AS BEFORE) ==========
 
 class ACSEEReportGenerator(StudentReportGenerator):
     """ACSEE Report Generator (alias)"""
