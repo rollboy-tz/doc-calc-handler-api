@@ -1,0 +1,771 @@
+{
+    "analytics": {
+        "class": {
+            "divisions": {
+                "counts": {
+                    "0": 2,
+                    "II": 1,
+                    "III": 1
+                },
+                "percentages": {
+                    "0": 50,
+                    "II": 25,
+                    "III": 25
+                }
+            },
+            "grades": {
+                "counts": {
+                    "B": 2,
+                    "C": 1,
+                    "D": 1
+                },
+                "percentages": {
+                    "B": 50,
+                    "C": 25,
+                    "D": 25
+                }
+            },
+            "overview": {
+                "average": 68,
+                "range": {
+                    "high": 79,
+                    "low": 55
+                },
+                "students": 4,
+                "subjects": 11
+            }
+        },
+        "subjects": {
+            "accountancy": {
+                "attendance": {
+                    "attended": 1,
+                    "rate": 25,
+                    "total": 4
+                },
+                "grades": {
+                    "counts": {
+                        "D": 1
+                    },
+                    "percentages": {
+                        "D": 25
+                    }
+                },
+                "performance": {
+                    "average": 55,
+                    "high": 55,
+                    "low": 55,
+                    "pass_rate": 100
+                }
+            },
+            "biology": {
+                "attendance": {
+                    "attended": 1,
+                    "rate": 25,
+                    "total": 4
+                },
+                "grades": {
+                    "counts": {
+                        "A": 1
+                    },
+                    "percentages": {
+                        "A": 25
+                    }
+                },
+                "performance": {
+                    "average": 85,
+                    "high": 85,
+                    "low": 85,
+                    "pass_rate": 100
+                }
+            },
+            "chemistry": {
+                "attendance": {
+                    "attended": 2,
+                    "rate": 50,
+                    "total": 4
+                },
+                "grades": {
+                    "counts": {
+                        "A": 1,
+                        "B": 1
+                    },
+                    "percentages": {
+                        "A": 25,
+                        "B": 25
+                    }
+                },
+                "performance": {
+                    "average": 78,
+                    "high": 82,
+                    "low": 75,
+                    "pass_rate": 100
+                }
+            },
+            "commerce": {
+                "attendance": {
+                    "attended": 1,
+                    "rate": 25,
+                    "total": 4
+                },
+                "grades": {
+                    "counts": {
+                        "C": 1
+                    },
+                    "percentages": {
+                        "C": 25
+                    }
+                },
+                "performance": {
+                    "average": 62,
+                    "high": 62,
+                    "low": 62,
+                    "pass_rate": 100
+                }
+            },
+            "economics": {
+                "attendance": {
+                    "attended": 1,
+                    "rate": 25,
+                    "total": 4
+                },
+                "grades": {
+                    "counts": {
+                        "D": 1
+                    },
+                    "percentages": {
+                        "D": 25
+                    }
+                },
+                "performance": {
+                    "average": 58,
+                    "high": 58,
+                    "low": 58,
+                    "pass_rate": 100
+                }
+            },
+            "general_studies": {
+                "attendance": {
+                    "attended": 4,
+                    "rate": 100,
+                    "total": 4
+                },
+                "grades": {
+                    "counts": {
+                        "B": 1,
+                        "C": 2,
+                        "E": 1
+                    },
+                    "percentages": {
+                        "B": 25,
+                        "C": 50,
+                        "E": 25
+                    }
+                },
+                "performance": {
+                    "average": 62,
+                    "high": 72,
+                    "low": 48,
+                    "pass_rate": 75
+                }
+            },
+            "geography": {
+                "attendance": {
+                    "attended": 1,
+                    "rate": 25,
+                    "total": 4
+                },
+                "grades": {
+                    "counts": {
+                        "C": 1
+                    },
+                    "percentages": {
+                        "C": 25
+                    }
+                },
+                "performance": {
+                    "average": 68,
+                    "high": 68,
+                    "low": 68,
+                    "pass_rate": 100
+                }
+            },
+            "history": {
+                "attendance": {
+                    "attended": 1,
+                    "rate": 25,
+                    "total": 4
+                },
+                "grades": {
+                    "counts": {
+                        "B": 1
+                    },
+                    "percentages": {
+                        "B": 25
+                    }
+                },
+                "performance": {
+                    "average": 72,
+                    "high": 72,
+                    "low": 72,
+                    "pass_rate": 100
+                }
+            },
+            "language": {
+                "attendance": {
+                    "attended": 1,
+                    "rate": 25,
+                    "total": 4
+                },
+                "grades": {
+                    "counts": {
+                        "B": 1
+                    },
+                    "percentages": {
+                        "B": 25
+                    }
+                },
+                "performance": {
+                    "average": 75,
+                    "high": 75,
+                    "low": 75,
+                    "pass_rate": 100
+                }
+            },
+            "mathematics": {
+                "attendance": {
+                    "attended": 1,
+                    "rate": 25,
+                    "total": 4
+                },
+                "grades": {
+                    "counts": {
+                        "C": 1
+                    },
+                    "percentages": {
+                        "C": 25
+                    }
+                },
+                "performance": {
+                    "average": 68,
+                    "high": 68,
+                    "low": 68,
+                    "pass_rate": 100
+                }
+            },
+            "physics": {
+                "attendance": {
+                    "attended": 2,
+                    "rate": 50,
+                    "total": 4
+                },
+                "grades": {
+                    "counts": {
+                        "A": 1,
+                        "B": 1
+                    },
+                    "percentages": {
+                        "A": 25,
+                        "B": 25
+                    }
+                },
+                "performance": {
+                    "average": 80,
+                    "high": 82,
+                    "low": 78,
+                    "pass_rate": 100
+                }
+            }
+        }
+    },
+    "metadata": {
+        "class_id": "FORM6_SCIENCE_2024",
+        "exam_id": "ACSEE_MOCK_2024_001",
+        "processed": "2026-01-19T15:08:05.158006",
+        "rule": "acsee",
+        "scale": 100,
+        "stream_id": "",
+        "students": 4,
+        "subject_list": [
+            "physics",
+            "chemistry",
+            "mathematics",
+            "biology",
+            "history",
+            "geography",
+            "language",
+            "economics",
+            "commerce",
+            "accountancy",
+            "general_studies"
+        ],
+        "subjects": 11,
+        "system": "ACSEE (Form 6 - A-Level)"
+    },
+    "students": [
+        {
+            "student": {
+                "admission": "F6/002/2024",
+                "gender": "F",
+                "id": "ACSEE2024002",
+                "name": "SARA MWANGA"
+            },
+            "subjects": {
+                "accountancy": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "biology": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 85,
+                    "pass": true,
+                    "points": 5,
+                    "remark": "Excellent",
+                    "subject_rank": 1
+                },
+                "chemistry": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 82,
+                    "pass": true,
+                    "points": 5,
+                    "remark": "Excellent",
+                    "subject_rank": 1
+                },
+                "commerce": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "economics": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "general_studies": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 72,
+                    "pass": true,
+                    "points": 4,
+                    "remark": "Very Good",
+                    "subject_rank": 1
+                },
+                "geography": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "history": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "language": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "mathematics": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "physics": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 78,
+                    "pass": true,
+                    "points": 4,
+                    "remark": "Very Good",
+                    "subject_rank": 2
+                }
+            },
+            "summary": {
+                "average": 79,
+                "division": "III",
+                "grade": "B",
+                "points": 9,
+                "principals": 2,
+                "rank": 1,
+                "remark": "Very Good",
+                "status": "PASS",
+                "subjects_attended": 4,
+                "subjects_passed": 4,
+                "subjects_total": 11,
+                "total": 317
+            }
+        },
+        {
+            "student": {
+                "admission": "F6/001/2024",
+                "gender": "M",
+                "id": "ACSEE2024001",
+                "name": "DAVID OTIENO"
+            },
+            "subjects": {
+                "accountancy": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "biology": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "chemistry": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 75,
+                    "pass": true,
+                    "points": 4,
+                    "remark": "Very Good",
+                    "subject_rank": 2
+                },
+                "commerce": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "economics": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "general_studies": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 65,
+                    "pass": true,
+                    "points": 3,
+                    "remark": "Good",
+                    "subject_rank": 2
+                },
+                "geography": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "history": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "language": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "mathematics": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 68,
+                    "pass": true,
+                    "points": 3,
+                    "remark": "Good",
+                    "subject_rank": 1
+                },
+                "physics": {
+                    "attended": true,
+                    "grade": "A",
+                    "marks": 82,
+                    "pass": true,
+                    "points": 5,
+                    "remark": "Excellent",
+                    "subject_rank": 1
+                }
+            },
+            "summary": {
+                "average": 72,
+                "division": "II",
+                "grade": "B",
+                "points": 12,
+                "principals": 3,
+                "rank": 2,
+                "remark": "Very Good",
+                "status": "PASS",
+                "subjects_attended": 4,
+                "subjects_passed": 4,
+                "subjects_total": 11,
+                "total": 290
+            }
+        },
+        {
+            "student": {
+                "admission": "F6/003/2024",
+                "gender": "M",
+                "id": "ACSEE2024003",
+                "name": "JOSEPH MGANGA"
+            },
+            "subjects": {
+                "accountancy": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "biology": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "chemistry": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "commerce": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "economics": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "general_studies": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 64,
+                    "pass": true,
+                    "points": 3,
+                    "remark": "Good",
+                    "subject_rank": 3
+                },
+                "geography": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 68,
+                    "pass": true,
+                    "points": 3,
+                    "remark": "Good",
+                    "subject_rank": 1
+                },
+                "history": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 72,
+                    "pass": true,
+                    "points": 4,
+                    "remark": "Very Good",
+                    "subject_rank": 1
+                },
+                "language": {
+                    "attended": true,
+                    "grade": "B",
+                    "marks": 75,
+                    "pass": true,
+                    "points": 4,
+                    "remark": "Very Good",
+                    "subject_rank": 1
+                },
+                "mathematics": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "physics": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                }
+            },
+            "summary": {
+                "average": 69,
+                "division": "0",
+                "grade": "C",
+                "points": 0,
+                "principals": 0,
+                "rank": 3,
+                "remark": "Good",
+                "status": "FAIL",
+                "subjects_attended": 4,
+                "subjects_passed": 4,
+                "subjects_total": 11,
+                "total": 279
+            }
+        },
+        {
+            "student": {
+                "admission": "F6/004/2024",
+                "gender": "F",
+                "id": "ACSEE2024004",
+                "name": "ANNA KABISA"
+            },
+            "subjects": {
+                "accountancy": {
+                    "attended": true,
+                    "grade": "D",
+                    "marks": 55,
+                    "pass": true,
+                    "points": 2,
+                    "remark": "Satisfactory",
+                    "subject_rank": 1
+                },
+                "biology": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "chemistry": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "commerce": {
+                    "attended": true,
+                    "grade": "C",
+                    "marks": 62,
+                    "pass": true,
+                    "points": 3,
+                    "remark": "Good",
+                    "subject_rank": 1
+                },
+                "economics": {
+                    "attended": true,
+                    "grade": "D",
+                    "marks": 58,
+                    "pass": true,
+                    "points": 2,
+                    "remark": "Satisfactory",
+                    "subject_rank": 1
+                },
+                "general_studies": {
+                    "attended": true,
+                    "grade": "E",
+                    "marks": 48,
+                    "pass": false,
+                    "points": 1,
+                    "remark": "Pass",
+                    "subject_rank": 4
+                },
+                "geography": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "history": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "language": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "mathematics": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                },
+                "physics": {
+                    "attended": false,
+                    "grade": "ABS",
+                    "marks": null,
+                    "pass": false,
+                    "points": null,
+                    "remark": "Absent"
+                }
+            },
+            "summary": {
+                "average": 55,
+                "division": "0",
+                "grade": "D",
+                "points": 0,
+                "principals": 0,
+                "rank": 4,
+                "remark": "Satisfactory",
+                "status": "FAIL",
+                "subjects_attended": 4,
+                "subjects_passed": 3,
+                "subjects_total": 11,
+                "total": 223
+            }
+        }
+    ],
+    "success": true
+}
