@@ -1,24 +1,11 @@
-FROM ubuntu:22.04
-
-# Install Python and system dependencies
-RUN apt-get update && apt-get install -y \
-    python3.11 \
-    python3-pip \
-    libpango1.0-0 \
-    libpangoft2-1.0-0 \
-    libpangocairo-1.0-0 \
-    libcairo2 \
-    libgdk-pixbuf2.0-0
-
-WORKDIR /app
-
-# Use Python 3.11 explicitly
-RUN ln -s /usr/bin/python3.11 /usr/local/bin/python
-
-COPY src/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY src/ .
-
-EXPOSE 5000
-CMD ["python", "app.py"]
+# render.yaml
+services:
+  - type: web
+    name: eduasas-pdf-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: FLASK_ENV
+        value: production
+    autoDeploy: true
