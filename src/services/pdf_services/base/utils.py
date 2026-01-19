@@ -1,10 +1,10 @@
 """
-Utility functions
+Utility functions for PDF generation
 """
 import os
 import tempfile
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Tuple
 
 def generate_filename(prefix: str, identifier: str, extension: str = "pdf") -> str:
     """Generate a filename with timestamp"""
@@ -14,9 +14,10 @@ def generate_filename(prefix: str, identifier: str, extension: str = "pdf") -> s
 
 def get_temp_path(filename: str) -> str:
     """Get temporary file path"""
-    return os.path.join(tempfile.gettempdir(), filename)
+    temp_dir = tempfile.gettempdir()
+    return os.path.join(temp_dir, filename)
 
-def validate_data(data: Dict[str, Any], required_fields: list) -> tuple:
+def validate_data(data: Dict[str, Any], required_fields: list) -> Tuple[bool, str]:
     """Validate required fields in data"""
     missing = [field for field in required_fields if field not in data]
     if missing:
@@ -30,3 +31,20 @@ def format_percentage(value: float) -> str:
 def format_currency(amount: float) -> str:
     """Format currency amount"""
     return f"TSh {amount:,.0f}"
+
+def get_current_date() -> str:
+    """Get current date in dd/mm/yyyy format"""
+    return datetime.now().strftime("%d/%m/%Y")
+
+def get_current_time() -> str:
+    """Get current time in HH:MM format"""
+    return datetime.now().strftime("%H:%M")
+
+def sanitize_text(text: str, max_length: int = 100) -> str:
+    """Sanitize text for PDF output"""
+    if not text:
+        return ""
+    text = str(text).strip()
+    if len(text) > max_length:
+        return text[:max_length-3] + "..."
+    return text
