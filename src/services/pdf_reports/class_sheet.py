@@ -1,8 +1,8 @@
 """
-class_sheet.py - WITH METADATA
+class_sheet.py - SIMPLE WORKING VERSION
 """
 from .base_template import BasePDFTemplate
-from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
+from reportlab.platypus import Table, TableStyle, Spacer, Paragraph, SimpleDocTemplate
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
@@ -15,7 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ClassSheet(BasePDFTemplate):
-    """Generate class result sheet with metadata"""
+    """Generate class result sheet"""
     
     def generate(self, class_data, school_info=None):
         try:
@@ -25,19 +25,13 @@ class ClassSheet(BasePDFTemplate):
             
             # Prepare metadata
             class_id = class_data['metadata']['class_id']
-            exam_id = class_data['metadata'].get('exam_id', 'Examination')
-            school_name = school_info.get('name', 'School') if school_info else 'School'
             
-            title = f"Class Result Sheet - {class_id}"
-            subject = f"Class Results for {class_id} - {school_name} - {exam_id}"
-            author = f"{self.system_config['system_name']} for {school_name}"
-            
-            # Create document with metadata
+            # Create document
             doc = self.create_document(
                 filepath=filepath,
-                title=title,
-                subject=subject,
-                author=author
+                title=f"Class Sheet - {class_id}",
+                subject=f"Class Results for {class_id}",
+                author=self.system_config['author']
             )
             
             # Build content
@@ -46,15 +40,15 @@ class ClassSheet(BasePDFTemplate):
             # Build PDF
             doc.build(story, onFirstPage=self.add_footer, onLaterPages=self.add_footer)
             
-            logger.info(f"Generated class sheet with metadata: {filename}")
+            logger.info(f"Generated class sheet: {filename}")
             return filepath
             
         except Exception as e:
             logger.error(f"Class sheet error: {e}")
-            return self._create_error_pdf(str(e), class_data, school_info)
+            return self._create_error_pdf(str(e))
     
     def _build_content(self, class_data, school_info):
-        """Build class sheet content"""
+        """Build content"""
         story = []
         styles = getSampleStyleSheet()
         
@@ -62,69 +56,46 @@ class ClassSheet(BasePDFTemplate):
         if school_info and school_info.get('name'):
             story.append(Paragraph(school_info['name'], styles['Heading2']))
         
-        # Class sheet title
+        # Title
         metadata = class_data['metadata']
-        title = f"CLASS RESULT SHEET - {metadata['class_id']}"
-        if metadata.get('exam_id'):
-            title += f" - {metadata['exam_id']}"
-        
-        story.append(Paragraph(title, styles['Heading1']))
+        story.append(Paragraph(f"CLASS RESULT SHEET - {metadata['class_id']}", styles['Heading1']))
         story.append(Spacer(1, 10))
         
         # Class info
-        info_text = f"Academic Year: {metadata.get('academic_year', 'N/A')}"
-        if metadata.get('term'):
-            info_text += f" | Term: {metadata['term']}"
-        if metadata.get('stream'):
-            info_text += f" | Stream: {metadata['stream']}"
-        
-        story.append(Paragraph(info_text, styles['Normal']))
-        story.append(Paragraph(f"Total Students: {metadata.get('students', 'N/A')}", styles['Normal']))
+        story.append(Paragraph(f"Exam: {metadata.get('exam_id', 'N/A')}", styles['Normal']))
+        story.append(Paragraph(f"Students: {metadata.get('students', 'N/A')}", styles['Normal']))
         story.append(Spacer(1, 15))
         
         # Students table
         students = class_data['students']
-        data = [["RANK", "NAME", "ADM NO", "TOTAL", "AVG%", "GRADE", "DIV", "REMARK"]]
+        data = [["RANK", "NAME", "ADM NO", "TOTAL", "AVG%", "GRADE"]]
         
         for student in students:
             stu = student['student']
             summary = student['summary']
             data.append([
                 str(summary['rank']),
-                stu['name'],
+                stu['name'][:20],  # Limit name length
                 stu['admission'],
                 str(summary['total']),
                 f"{summary['average']:.1f}",
-                summary['grade'],
-                summary.get('division', ''),
-                summary['remark'][:15]  # Shorten remark
+                summary['grade']
             ])
         
-        table = Table(data, colWidths=[40, 120, 70, 50, 50, 40, 40, 80])
+        table = Table(data, colWidths=[50, 150, 80, 60, 60, 50])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.darkblue),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0,0), (-1,0), 9),
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-            ('ALIGN', (0,1), (7,-1), 'CENTER'),
-            ('FONTSIZE', (0,1), (-1,-1), 8),
-            ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
         ]))
-        
-        # Alternate row colors
-        for i in range(1, len(data)):
-            if i % 2 == 0:
-                table.setStyle(TableStyle([
-                    ('BACKGROUND', (0,i), (-1,i), colors.HexColor('#f8f9fa'))
-                ]))
         
         story.append(table)
         story.append(Spacer(1, 20))
         
-        # Generation info
+        # Footer
         story.append(Paragraph(
-            f"Generated on: {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}",
+            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
             styles['Italic']
         ))
         
@@ -133,14 +104,14 @@ class ClassSheet(BasePDFTemplate):
     def _create_filename(self, class_data, school_info):
         """Create filename"""
         class_id = class_data['metadata']['class_id']
-        clean_class = re.sub(r'[^\w\-]', '_', class_id)[:30]
+        clean_class = re.sub(r'[^\w\-]', '_', class_id)[:20]
         school_code = school_info.get('code', 'SCH') if school_info else 'SCH'
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
-        return f"{school_code}_ClassSheet_{clean_class}_{timestamp}.pdf"
+        return f"{school_code}_Class_{clean_class}_{timestamp}.pdf"
     
-    def _create_error_pdf(self, error_msg, class_data=None, school_info=None):
-        """Create error PDF with metadata"""
+    def _create_error_pdf(self, error_msg):
+        """Create error PDF"""
         temp_file = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
         
         from reportlab.pdfgen import canvas
@@ -150,21 +121,10 @@ class ClassSheet(BasePDFTemplate):
         # Set metadata
         c.setTitle("Class Sheet Error")
         c.setAuthor(self.system_config['author'])
-        c.setSubject("Error Report")
-        c.setKeywords("error, class, sheet, system")
-        c.setCreator(self.system_config['system_name'])
         
         # Content
-        c.drawString(100, 800, "⚠️ CLASS SHEET GENERATION ERROR")
+        c.drawString(100, 800, "⚠️ CLASS SHEET ERROR")
         c.drawString(100, 780, f"Error: {error_msg[:80]}")
-        
-        if class_data:
-            metadata = class_data.get('metadata', {})
-            c.drawString(100, 760, f"Class: {metadata.get('class_id', 'N/A')}")
-            c.drawString(100, 740, f"Exam: {metadata.get('exam_id', 'N/A')}")
-        
-        c.drawString(100, 720, f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-        c.drawString(100, 700, f"System: {self.system_config['system_name']}")
         
         c.save()
         return temp_file.name
