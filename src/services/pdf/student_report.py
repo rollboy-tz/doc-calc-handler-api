@@ -1,5 +1,6 @@
 """
-STUDENT REPORT GENERATOR
+STUDENT REPORT GENERATOR - PROFESSIONAL
+Validates data and generates PDF only if data is complete
 """
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
@@ -7,52 +8,81 @@ from datetime import datetime
 
 
 class StudentReportGenerator:
-    """Generate PDF for individual student"""
+    """Generate professional student report PDF"""
+    
+    def validate_data(self, student_data):
+        """Validate student data before generating PDF"""
+        errors = []
+        
+        # Check required fields
+        if 'student' not in student_data:
+            errors.append("Missing 'student' object")
+            return False, errors
+        
+        student = student_data['student']
+        required_fields = ['name', 'admission']
+        for field in required_fields:
+            if field not in student or not student[field]:
+                errors.append(f"Missing required field: student.{field}")
+        
+        # Check subjects
+        if 'subjects' not in student_data:
+            errors.append("Missing 'subjects' object")
+        elif not student_data['subjects']:
+            errors.append("Subjects data is empty")
+        
+        # Check summary
+        if 'summary' not in student_data:
+            errors.append("Missing 'summary' object")
+        
+        return len(errors) == 0, errors
     
     def generate(self, student_data, school_info=None):
-        """Generate student report PDF - with error handling"""
+        """Generate PDF - returns (success, pdf_bytes_or_error)"""
+        # Validate data first
+        is_valid, errors = self.validate_data(student_data)
+        if not is_valid:
+            return False, {"errors": errors, "message": "Invalid student data"}
+        
         try:
             html_content = self._create_html(student_data, school_info)
             pdf_bytes = self._html_to_pdf(html_content)
-            return pdf_bytes
+            return True, pdf_bytes
         except Exception as e:
-            # Return simple error PDF instead of crashing
-            print(f"Student report error: {e}")
-            return self._generate_error_pdf(f"Student Report Error: {str(e)[:100]}")
+            return False, {"error": str(e), "message": "PDF generation failed"}
     
     def _create_html(self, student_data, school_info):
-        """Create HTML content for student report"""
-        student = student_data.get('student', {})
-        subjects = student_data.get('subjects', {})
-        summary = student_data.get('summary', {})
+        """Create HTML content"""
+        student = student_data['student']
+        subjects = student_data['subjects']
+        summary = student_data['summary']
         
         # School info
         school = school_info or {}
         
-        # Subjects table rows
-        subjects_rows = ""
-        for subj_name, subj_data in subjects.items():
-            marks = subj_data.get('marks', 'N/A')
-            grade = subj_data.get('grade', 'N/A')
-            points = subj_data.get('points', '-')
-            status = "PASS" if subj_data.get('pass') else "FAIL"
-            
-            subjects_rows += f"""
+        # Subjects table
+        subjects_html = ""
+        if subjects:
+            for subj_name, subj_data in subjects.items():
+                subjects_html += f"""
                 <tr>
                     <td>{subj_name}</td>
-                    <td>{marks}</td>
-                    <td>{grade}</td>
-                    <td>{points}</td>
-                    <td>{status}</td>
+                    <td>{subj_data.get('marks', 'N/A')}</td>
+                    <td>{subj_data.get('grade', 'N/A')}</td>
+                    <td>{subj_data.get('points', '-')}</td>
+                    <td>{"PASS" if subj_data.get('pass') else "FAIL"}</td>
                 </tr>
-            """
+                """
+        else:
+            subjects_html = "<tr><td colspan='5' style='text-align: center;'>No subjects data</td></tr>"
         
+        # Generate HTML
         html = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>Student Report - {student.get('name', 'Unknown')}</title>
+            <title>Student Report - {student['name']}</title>
             <style>
                 {self._get_css()}
             </style>
@@ -60,24 +90,19 @@ class StudentReportGenerator:
         <body>
             <div class="header">
                 <h1>{school.get('name', 'STUDENT REPORT')}</h1>
-                <p class="school-info">
-                    {school.get('address', '')} | 
-                    Tel: {school.get('phone', '')}
-                </p>
+                <p class="info">{school.get('address', '')}</p>
             </div>
             
-            <div class="student-info">
-                <h2>STUDENT INFORMATION</h2>
-                <table>
+            <div class="content">
+                <h2>Student Information</h2>
+                <table class="info-table">
                     <tr><td><strong>Name:</strong></td><td>{student.get('name', 'N/A')}</td></tr>
                     <tr><td><strong>Admission No:</strong></td><td>{student.get('admission', 'N/A')}</td></tr>
-                    <tr><td><strong>Gender:</strong></td><td>{student.get('gender', 'N/A')}</td></tr>
                     <tr><td><strong>Class:</strong></td><td>{student.get('class', 'N/A')}</td></tr>
+                    <tr><td><strong>Gender:</strong></td><td>{student.get('gender', 'N/A')}</td></tr>
                 </table>
-            </div>
-            
-            <div class="academic-section">
-                <h3>ACADEMIC PERFORMANCE</h3>
+                
+                <h2>Academic Performance</h2>
                 <table class="subject-table">
                     <tr>
                         <th>Subject</th>
@@ -86,15 +111,12 @@ class StudentReportGenerator:
                         <th>Points</th>
                         <th>Status</th>
                     </tr>
-                    {subjects_rows}
+                    {subjects_html}
                 </table>
-            </div>
-            
-            <div class="summary-section">
-                <h3>PERFORMANCE SUMMARY</h3>
+                
+                <h2>Summary</h2>
                 <table class="summary-table">
-                    <tr><td><strong>Total Marks:</strong></td><td>{summary.get('total', 0)}</td></tr>
-                    <tr><td><strong>Average Score:</strong></td><td>{summary.get('average', 0)}%</td></tr>
+                    <tr><td><strong>Average:</strong></td><td>{summary.get('average', 'N/A')}%</td></tr>
                     <tr><td><strong>Overall Grade:</strong></td><td>{summary.get('grade', 'N/A')}</td></tr>
                     <tr><td><strong>Division:</strong></td><td>{summary.get('division', 'N/A')}</td></tr>
                     <tr><td><strong>Class Rank:</strong></td><td>{summary.get('rank', 'N/A')}</td></tr>
@@ -103,7 +125,8 @@ class StudentReportGenerator:
             </div>
             
             <div class="footer">
-                <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+                <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                <p>Report ID: {student.get('admission', 'N/A')}-{datetime.now().strftime('%Y%m%d%H%M%S')}</p>
             </div>
         </body>
         </html>
@@ -111,45 +134,92 @@ class StudentReportGenerator:
         return html
     
     def _html_to_pdf(self, html_content):
-        """Convert HTML to PDF bytes"""
+        """Convert HTML to PDF"""
         font_config = FontConfiguration()
         css = CSS(string=self._get_css(), font_config=font_config)
         html_obj = HTML(string=html_content)
         return html_obj.write_pdf(stylesheets=[css], font_config=font_config)
     
-    def _generate_error_pdf(self, error_message):
-        """Generate error PDF when main generation fails"""
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head><style>body {{ font-family: Arial; padding: 20px; }}</style></head>
-        <body>
-            <h1>⚠️ Report Generation Error</h1>
-            <p>{error_message}</p>
-            <p>Please try again or contact support.</p>
-            <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
-        </body>
-        </html>
-        """
-        html = HTML(string=html_content)
-        return html.write_pdf()
-    
     def _get_css(self):
-        """Get CSS styles"""
+        """Professional CSS styling"""
         return """
-        @page { size: A4; margin: 20mm; }
-        body { font-family: Arial, sans-serif; font-size: 12px; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { color: #2c3e50; }
-        .student-info h2, .academic-section h3, .summary-section h3 { 
-            color: #3498db; 
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 5px;
+        @page {
+            size: A4;
+            margin: 20mm;
+            @bottom-right {
+                content: "Page " counter(page);
+                font-size: 10pt;
+                color: #666;
+            }
         }
-        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-        th { background-color: #2c3e50; color: white; padding: 8px; }
-        td { border: 1px solid #ddd; padding: 8px; }
-        .subject-table tr:nth-child(even) { background-color: #f2f2f2; }
-        .summary-table td { background-color: #f8f9fa; }
-        .footer { margin-top: 30px; text-align: center; color: #666; }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #2c3e50;
+        }
+        .header h1 {
+            color: #2c3e50;
+            font-size: 20pt;
+            margin: 0 0 5px 0;
+        }
+        .header .info {
+            color: #666;
+            font-size: 10pt;
+            margin: 0;
+        }
+        .content {
+            margin: 0 10px;
+        }
+        h2 {
+            color: #3498db;
+            font-size: 14pt;
+            border-bottom: 1px solid #3498db;
+            padding-bottom: 5px;
+            margin: 25px 0 15px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .info-table td {
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+        .subject-table th {
+            background-color: #2c3e50;
+            color: white;
+            padding: 10px;
+            text-align: left;
+        }
+        .subject-table td {
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+        .subject-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .summary-table {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+        }
+        .summary-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            font-size: 9pt;
+            color: #666;
+            text-align: center;
+        }
         """
