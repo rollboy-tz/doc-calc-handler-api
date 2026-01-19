@@ -1,16 +1,17 @@
 """
-Essential utilities for PDF generation
+services/pdf_reports/utils.py
+Utilities for PDF generation
 """
 import os
 from datetime import datetime
 from typing import Optional, Dict
 
 class SafeImageHandler:
-    """Safe image handling - won't crash if logo missing"""
+    """Safe image handling"""
     
     @staticmethod
     def load_logo(logo_path: str):
-        """Load logo safely"""
+        """Load logo safely - returns None if not found"""
         if not logo_path or not os.path.exists(logo_path):
             return None
         
@@ -30,11 +31,14 @@ class ReportMetadata:
         self.system = "EDU-MANAGER PRO v2.0"
     
     def to_dict(self):
-        """Convert to dictionary for PDF metadata"""
+        """Convert to dictionary"""
         return {
-            "school": self.school_info.get('name', ''),
-            "exam": self.exam_info.get('exam_id', ''),
-            "class": self.exam_info.get('class_id', ''),
-            "generated": self.generated_at.isoformat(),
-            "system": self.system
+            "system_name": self.system,
+            "version": "2.0",
+            "copyright": f"© {self.generated_at.year} EduManager Pro",
+            "author": "EDU-MANAGER REPORT SYSTEM",
+            "generator": "Python ReportLab",
+            "school": self.school_info,
+            "exam": self.exam_info,
+            "generated": self.generated_at.isoformat()
         }

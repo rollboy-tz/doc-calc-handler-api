@@ -1,12 +1,11 @@
 """
-routes/report_routes.py
-FIXED - Correct imports
+routes/report_routes.py - SIMPLE WORKING VERSION
 """
 from flask import Blueprint, request, jsonify, send_file
-from services.pdf_reports import ReportFactory, ReportMetadata  # ✅ This is correct
 import tempfile
 import os
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -24,24 +23,35 @@ def generate_student_report():
                 'error': 'Missing student_data'
             }), 400
         
-        # Create metadata
-        metadata = ReportMetadata(
-            school_info=data.get('school_info'),
-            exam_info=data.get('exam_info')
-        )
+        # Import inside function to avoid circular imports
+        from services.pdf_reports import ReportFactory
+        
+        # Create system config
+        system_config = {
+            "system_name": "EDU-MANAGER PRO",
+            "version": "2.0",
+            "copyright": f"© {datetime.now().year} EduManager Pro",
+            "author": "EDU-MANAGER REPORT SYSTEM",
+            "generator": "Python ReportLab"
+        }
         
         # Create and generate report
-        report = ReportFactory.create('student_report', metadata.to_dict())
+        report = ReportFactory.create('student_report', system_config)
+        
         pdf_path = report.generate(
             data['student_data'],
             data.get('class_data', {}),
             data.get('school_info')
         )
         
+        # Create filename
+        student_name = data['student_data']['student']['name'].replace(' ', '_')
+        filename = f"report_{student_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        
         return send_file(
             pdf_path,
             as_attachment=True,
-            download_name=os.path.basename(pdf_path),
+            download_name=filename,
             mimetype='application/pdf'
         )
         
@@ -52,7 +62,7 @@ def generate_student_report():
             'error': str(e)
         }), 500
 
-@report_routes.route('/api/results/class', methods=['POST'])
+@report_routes.route('/api/reports/class', methods=['POST'])
 def generate_class_sheet():
     """Generate class result sheet"""
     try:
@@ -64,21 +74,31 @@ def generate_class_sheet():
                 'error': 'Missing class_data'
             }), 400
         
-        metadata = ReportMetadata(
-            school_info=data.get('school_info'),
-            exam_info=data.get('exam_info')
-        )
+        # Import inside function
+        from services.pdf_reports import ReportFactory
         
-        report = ReportFactory.create('class_sheet', metadata.to_dict())
+        system_config = {
+            "system_name": "EDU-MANAGER PRO",
+            "version": "2.0",
+            "copyright": f"© {datetime.now().year} EduManager Pro",
+            "author": "EDU-MANAGER REPORT SYSTEM",
+            "generator": "Python ReportLab"
+        }
+        
+        report = ReportFactory.create('class_sheet', system_config)
         pdf_path = report.generate(
             data['class_data'],
             data.get('school_info')
         )
         
+        # Create filename
+        class_id = data['class_data']['metadata']['class_id']
+        filename = f"class_sheet_{class_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        
         return send_file(
             pdf_path,
             as_attachment=True,
-            download_name=os.path.basename(pdf_path),
+            download_name=filename,
             mimetype='application/pdf'
         )
         
@@ -88,3 +108,13 @@ def generate_class_sheet():
             'success': False,
             'error': str(e)
         }), 500
+
+@report_routes.route('/api/reports/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'success': True,
+        'status': 'healthy',
+        'service': 'pdf-report-generator',
+        'timestamp': datetime.now().isoformat()
+    })

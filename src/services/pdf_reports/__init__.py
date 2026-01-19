@@ -1,12 +1,18 @@
 """
 services/pdf_reports/__init__.py
-FIXED - Remove circular import
+Fixed imports
 """
-# KABLA (WRONG):
-# from .report_routes import report_routes  # ← HAPA NDIO ERROR
-
-# BADA YA KUREKEBISHA (CORRECT):
 from .report_factory import ReportFactory
 from .utils import SafeImageHandler, ReportMetadata
+from .base_template import BasePDFTemplate
+from .student_report import StudentReport
+from .class_sheet import ClassSheet
 
-__all__ = ['ReportFactory', 'SafeImageHandler', 'ReportMetadata']
+__all__ = [
+    'ReportFactory',
+    'SafeImageHandler', 
+    'ReportMetadata',
+    'BasePDFTemplate',
+    'StudentReport',
+    'ClassSheet'
+]
