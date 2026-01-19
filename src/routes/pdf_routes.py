@@ -1,145 +1,170 @@
 """
-PDF ROUTES
+PDF GENERATION ROUTES - SIMPLE TEST
 """
-from flask import Blueprint, request, send_file, jsonify
-from services.pdf import StudentReportGenerator, ClassReportGenerator
+from flask import Blueprint, request, jsonify, send_file, render_template_string
 import tempfile
 import os
-from datetime import datetime
+from weasyprint import HTML, CSS
+from weasyprint.text.fonts import FontConfiguration
+import io
 
-pdf_routes = Blueprint('pdf', __name__)
+pdf_routes = Blueprint('pdf', __name__, url_prefix='/api/pdf')
 
-# Initialize generators
-student_gen = StudentReportGenerator()
-class_gen = ClassReportGenerator()
+# Simple HTML template for testing
+SIMPLE_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .content {
+            line-height: 1.6;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+        .test-box {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test PDF - {{ title }}</h1>
+    
+    <div class="content">
+        <p>Generated on: {{ timestamp }}</p>
+        <p>This is a test PDF generated with WeasyPrint.</p>
+        
+        <div class="test-box">
+            <h3>Test Box</h3>
+            <p>If you can see this box with borders and background color, 
+            then CSS is working correctly.</p>
+            <ul>
+                <li>List item 1</li>
+                <li>List item 2</li>
+                <li>List item 3</li>
+            </ul>
+        </div>
+        
+        <p>If everything works, you should be able to download this as a PDF file.</p>
+    </div>
+    
+    <div class="footer">
+        Page <span class="pageNumber"></span> of <span class="totalPages"></span>
+    </div>
+</body>
+</html>
+"""
 
-
-@pdf_routes.route('/api/pdf/student', methods=['POST'])
-def generate_student_pdf():
-    """Generate student report PDF"""
+@pdf_routes.route('/test', methods=['GET'])
+def test_pdf():
+    """Simple test endpoint to generate PDF"""
     try:
-        # Get request data
-        if not request.is_json:
-            return jsonify({'error': 'Content-Type must be application/json'}), 400
-        
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        if 'student_data' not in data:
-            return jsonify({'error': 'Missing student_data field'}), 400
+        # Create simple HTML content
+        html_content = SIMPLE_HTML
         
         # Generate PDF
-        success, result = student_gen.generate(
-            student_data=data['student_data'],
-            school_info=data.get('school_info')
-        )
+        font_config = FontConfiguration()
+        html = HTML(string=html_content)
         
-        if not success:
-            return jsonify({
-                'error': 'PDF generation failed',
-                'details': result
-            }), 400
+        # Generate PDF bytes
+        pdf_bytes = html.write_pdf()
         
-        # Create temp file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-            tmp.write(result)
-            tmp_path = tmp.name
+        # Save to BytesIO
+        pdf_io = io.BytesIO(pdf_bytes)
+        pdf_io.seek(0)
         
-        # Create filename
-        student_name = data['student_data']['student']['name']
-        safe_name = ''.join(c if c.isalnum() else '_' for c in student_name)
-        filename = f"student_{safe_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        
-        # Return PDF
-        response = send_file(
-            tmp_path,
+        # Return as file
+        return send_file(
+            pdf_io,
+            mimetype='application/pdf',
             as_attachment=True,
-            download_name=filename,
-            mimetype='application/pdf'
+            download_name='test.pdf'
         )
-        
-        # Cleanup
-        try:
-            os.unlink(tmp_path)
-        except:
-            pass
-        
-        return response
         
     except Exception as e:
         return jsonify({
+            'success': False, 
             'error': str(e),
-            'success': False
+            'message': 'PDF generation failed. Check WeasyPrint installation.'
         }), 500
 
-
-@pdf_routes.route('/api/pdf/class', methods=['POST'])
-def generate_class_pdf():
-    """Generate class report PDF"""
+@pdf_routes.route('/custom', methods=['POST'])
+def generate_custom_pdf():
+    """Generate PDF from custom HTML"""
     try:
-        # Get request data
-        if not request.is_json:
-            return jsonify({'error': 'Content-Type must be application/json'}), 400
+        data = request.json or {}
         
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        if 'class_data' not in data:
-            return jsonify({'error': 'Missing class_data field'}), 400
+        # Get HTML content from request
+        html_content = data.get('html', '<h1>No HTML provided</h1><p>Test PDF</p>')
         
         # Generate PDF
-        success, result = class_gen.generate(
-            class_data=data['class_data'],
-            school_info=data.get('school_info')
-        )
+        font_config = FontConfiguration()
+        html = HTML(string=html_content)
         
-        if not success:
-            return jsonify({
-                'error': 'PDF generation failed',
-                'details': result
-            }), 400
+        # Generate PDF bytes
+        pdf_bytes = html.write_pdf()
         
-        # Create temp file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-            tmp.write(result)
-            tmp_path = tmp.name
+        # Save to BytesIO
+        pdf_io = io.BytesIO(pdf_bytes)
+        pdf_io.seek(0)
         
-        # Create filename
-        class_id = data['class_data']['metadata'].get('class_id', 'class')
-        safe_id = ''.join(c if c.isalnum() else '_' for c in class_id)
-        filename = f"class_{safe_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        
-        # Return PDF
-        response = send_file(
-            tmp_path,
+        # Return as file
+        return send_file(
+            pdf_io,
+            mimetype='application/pdf',
             as_attachment=True,
-            download_name=filename,
-            mimetype='application/pdf'
+            download_name='document.pdf'
         )
-        
-        # Cleanup
-        try:
-            os.unlink(tmp_path)
-        except:
-            pass
-        
-        return response
         
     except Exception as e:
         return jsonify({
-            'error': str(e),
-            'success': False
+            'success': False, 
+            'error': str(e)
         }), 500
 
-
-@pdf_routes.route('/api/pdf/status', methods=['GET'])
-def status():
-    """Check PDF service status"""
-    return jsonify({
-        'success': True,
-        'service': 'pdf_generation',
-        'status': 'active',
-        'timestamp': datetime.now().isoformat()
-    })
+@pdf_routes.route('/health', methods=['GET'])
+def pdf_health():
+    """Check if PDF generation is working"""
+    try:
+        # Try to import WeasyPrint
+        from weasyprint import HTML
+        import weasyprint
+        
+        # Simple test HTML
+        test_html = "<h1>Health Check</h1><p>WeasyPrint version: " + weasyprint.__version__ + "</p>"
+        
+        # Try to generate a tiny PDF
+        html = HTML(string=test_html)
+        pdf_bytes = html.write_pdf()
+        
+        return jsonify({
+            'success': True,
+            'message': 'PDF generation is working',
+            'weasyprint_version': weasyprint.__version__,
+            'test_pdf_size': len(pdf_bytes)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'PDF generation is not working properly'
+        }), 500
