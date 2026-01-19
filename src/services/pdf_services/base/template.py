@@ -1,21 +1,21 @@
 """
-Base PDF template using fpdf2 - COMPACT VERSION
+Base PDF template using fpdf2 - PROPER SPACING
 """
 from fpdf import FPDF
 from datetime import datetime
 from .constants import PDFConstants
 
 class BasePDFTemplate(FPDF):
-    """Base class for all PDF generators - COMPACT DESIGN"""
+    """Base class for all PDF generators - PROPER SPACING"""
     
     def __init__(self, config: dict = None):
         super().__init__()
         self.config = {**PDFConstants.SYSTEM_CONFIG, **(config or {})}
         self.constants = PDFConstants
         
-        # COMPACT Setup
-        self.set_margins(10, 10, 10)  # Smaller margins
-        self.set_auto_page_break(auto=True, margin=10)  # Smaller bottom margin
+        # Setup with proper spacing
+        self.set_margins(15, 15, 15)  # Standard margins
+        self.set_auto_page_break(auto=True, margin=15)
         self.set_display_mode(zoom="default")
         
         # Add first page
@@ -24,62 +24,56 @@ class BasePDFTemplate(FPDF):
     
     def _setup_fonts(self):
         """Setup fonts"""
-        # Using default Helvetica
-        self.set_font(PDFConstants.DEFAULT_FONT, "", 9)  # Smaller default font
+        self.set_font(PDFConstants.DEFAULT_FONT, "", 10)  # Normal font size
     
     def header(self):
-        """Header template - override in child classes"""
+        """Header template"""
         pass
     
     def footer(self):
-        """Simple compact footer"""
+        """Simple footer"""
         try:
-            self.set_y(-12)  # Higher up
-            self.set_font(PDFConstants.DEFAULT_FONT, "I", 7)  # Smaller
+            self.set_y(-15)
+            self.set_font(PDFConstants.DEFAULT_FONT, "I", 8)
             self.set_text_color(*PDFConstants.SECONDARY_COLOR)
             
             page_num = self.page_no()
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
             
-            # Page number on right
-            self.cell(0, 5, f"Page {page_num}", 0, 0, 'R')
-            
-            # Timestamp on left
-            self.set_x(10)
-            self.cell(0, 5, timestamp, 0, 0, 'L')
+            self.cell(0, 8, f"Page {page_num} | {timestamp}", 0, 0, 'C')
         except:
             pass
     
-    def add_title(self, text: str, size: int = 12):  # Smaller titles
-        """Add centered title - COMPACT"""
+    def add_title(self, text: str, size: int = 14):
+        """Add centered title"""
         self.set_font(PDFConstants.BOLD_FONT, "B", size)
         self.set_text_color(*PDFConstants.PRIMARY_COLOR)
-        self.cell(0, 6, text, 0, 1, 'C')  # Smaller height
-        self.ln(3)  # Smaller spacing
+        self.cell(0, 8, text, 0, 1, 'C')
+        self.ln(5)
     
-    def add_subtitle(self, text: str, size: int = 10):  # Smaller subtitles
-        """Add subtitle - COMPACT"""
+    def add_subtitle(self, text: str, size: int = 12):
+        """Add subtitle"""
         self.set_font(PDFConstants.BOLD_FONT, "B", size)
         self.set_text_color(*PDFConstants.SECONDARY_COLOR)
-        self.cell(0, 5, text, 0, 1, 'L')  # Smaller height
-        self.ln(2)  # Smaller spacing
+        self.cell(0, 7, text, 0, 1, 'L')
+        self.ln(3)
     
     def add_paragraph(self, text: str, align: str = 'L'):
-        """Add paragraph - COMPACT"""
-        self.set_font(PDFConstants.DEFAULT_FONT, "", 9)
-        self.multi_cell(0, 4, text, align=align)  # Smaller line height
-        self.ln(3)  # Smaller spacing
+        """Add paragraph"""
+        self.set_font(PDFConstants.DEFAULT_FONT, "", 10)
+        self.multi_cell(0, 5, text, align=align)
+        self.ln(5)
     
     def add_separator(self):
-        """Add horizontal line separator - COMPACT"""
-        self.line(10, self.get_y(), 200, self.get_y())
-        self.ln(2)  # Smaller spacing
+        """Add horizontal line separator"""
+        self.line(15, self.get_y(), 195, self.get_y())
+        self.ln(5)
     
     def reset_styles(self):
         """Reset to default styles"""
-        self.set_font(PDFConstants.DEFAULT_FONT, "", 9)
+        self.set_font(PDFConstants.DEFAULT_FONT, "", 10)
         self.set_text_color(0, 0, 0)
     
     def add_page_break(self):
-        """Add page break and preserve header"""
+        """Add page break"""
         self.add_page()
