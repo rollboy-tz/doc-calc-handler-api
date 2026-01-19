@@ -29,7 +29,7 @@ def create_app():
         logger.warning("ALLOWED_ORIGINS not set - allowing all origins")
     
     # Import and register routes - FIXED: Single import block
-    from routes import api_routes, extractor_routes, health_routes, template_routes
+    from routes import api_routes, extractor_routes, health_routes, template_routes, test_pdf_routes
     # app.py - Add this import and registration
     from routes.grading_routes import grading_routes
     from routes.pdf_routes import pdf_routes
@@ -44,6 +44,9 @@ def create_app():
     app.register_blueprint(template_routes)
     app.register_blueprint(grading_routes)
     app.register_blueprint(pdf_routes)
+
+    #test
+    app.register_blueprint(test_pdf_routes)
 
     
     # Register error handlers
