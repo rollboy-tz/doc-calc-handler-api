@@ -6,8 +6,14 @@ from weasyprint.text.fonts import FontConfiguration
 from datetime import datetime
 
 
+# services/pdf/student_report.py - CHECK CONSTRUCTOR
 class StudentReportGenerator:
+    def __init__(self):
+        """Initialize generator - NO PARAMETERS"""
+        pass  # Empty constructor
+    
     def generate(self, student_data, school_info=None):
+        # ... rest of code
         """Generate student report PDF"""
         html_content = self._create_html(student_data, school_info)
         pdf_bytes = self._html_to_pdf(html_content)
