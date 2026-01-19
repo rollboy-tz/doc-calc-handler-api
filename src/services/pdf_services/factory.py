@@ -1,0 +1,67 @@
+"""
+Factory for creating PDF generators
+"""
+import logging
+from typing import Dict, Any
+
+logger = logging.getLogger(__name__)
+
+class PDFGeneratorFactory:
+    """Factory to create PDF generator instances"""
+    
+    GENERATORS = {
+        'student_report': {
+            'module': 'student_reports.generator',
+            'class': 'StudentReportGenerator'
+        },
+        'class_report': {
+            'module': 'class_reports.generator',
+            'class': 'ClassReportGenerator'
+        },
+        'transcript': {
+            'module': 'transcripts.generator',
+            'class': 'TranscriptGenerator'
+        }
+    }
+    
+    @staticmethod
+    def create(generator_type: str, config: Dict[str, Any] = None):
+        """
+        Create a PDF generator instance
+        
+        Args:
+            generator_type: Type of generator (student_report, class_report, transcript)
+            config: Optional configuration dictionary
+        
+        Returns:
+            PDF generator instance
+        """
+        try:
+            if generator_type not in PDFGeneratorFactory.GENERATORS:
+                available = ', '.join(PDFGeneratorFactory.GENERATORS.keys())
+                raise ValueError(
+                    f"Unknown generator type: {generator_type}. "
+                    f"Available: {available}"
+                )
+            
+            generator_info = PDFGeneratorFactory.GENERATORS[generator_type]
+            module_name = generator_info['module']
+            class_name = generator_info['class']
+            
+            # Dynamic import
+            module_path = f"services.pdf_services.{module_name}"
+            module = __import__(module_path, fromlist=[class_name])
+            generator_class = getattr(module, class_name)
+            
+            # Create instance
+            return generator_class(config or {})
+            
+        except ImportError as e:
+            logger.error(f"Import error for {generator_type}: {e}")
+            raise ValueError(f"Cannot load generator: {generator_type}")
+        except AttributeError as e:
+            logger.error(f"Class not found: {e}")
+            raise ValueError(f"Generator class not found: {generator_type}")
+        except Exception as e:
+            logger.error(f"Factory error: {e}")
+            raise
