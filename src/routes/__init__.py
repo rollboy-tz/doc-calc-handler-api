@@ -13,7 +13,5 @@ __all__ = [
     'api_routes', 
     'extractor_routes', 
     'health_routes',
-    'pdf_routes',
     'test_routes',
-    'test_pdf_routes'  # ADD THIS LINE
 ]

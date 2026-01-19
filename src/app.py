@@ -43,10 +43,6 @@ def create_app():
     app.register_blueprint(health_routes)
     app.register_blueprint(template_routes)
     app.register_blueprint(grading_routes)
-    app.register_blueprint(pdf_routes)
-
-    #test
-    app.register_blueprint(test_pdf_routes)
 
     
     # Register error handlers
