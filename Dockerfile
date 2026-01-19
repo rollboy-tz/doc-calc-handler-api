@@ -13,13 +13,15 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy requirements first (for better caching)
-COPY requirements.txt .
+# Copy requirements from src folder
+COPY src/requirements.txt .
+
+# Install Python packages
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy the rest of src folder
+COPY src/ .
 
 EXPOSE 5000
 
