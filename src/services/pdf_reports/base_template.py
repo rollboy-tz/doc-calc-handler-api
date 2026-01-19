@@ -1,7 +1,7 @@
 """
-Base Template for all PDF reports
+services/pdf_reports/base_template.py - FIXED
 """
-from reportlab.lib import colors, units
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class BasePDFTemplate:
-    """Base template with system branding"""
+    """Base template with system branding - FIXED VERSION"""
     
     def __init__(self, system_config=None):
         self.system_config = system_config or self._default_config()
@@ -30,7 +30,7 @@ class BasePDFTemplate:
         }
     
     def _setup_styles(self):
-        """Setup PDF styles"""
+        """Setup PDF styles - FIXED no alpha parameter"""
         self.styles.add(ParagraphStyle(
             name='Footer',
             parent=self.styles['Normal'],
@@ -43,7 +43,7 @@ class BasePDFTemplate:
             name='Watermark',
             parent=self.styles['Normal'],
             fontSize=40,
-            textColor=colors.HexColor('#f0f0f0', alpha=0.1)
+            textColor=colors.lightgrey  # FIXED: Use lightgrey instead of HexColor with alpha
         ))
     
     def add_footer(self, canvas, doc):
@@ -65,14 +65,41 @@ class BasePDFTemplate:
             logger.warning(f"Footer error: {e}")
     
     def add_watermark(self, canvas, doc):
-        """Add watermark if needed"""
+        """Add watermark if needed - FIXED VERSION"""
         try:
             canvas.saveState()
-            canvas.setFont('Helvetica-Bold', 40)
-            canvas.setFillColor(colors.HexColor('#f0f0f0', alpha=0.1))
+            canvas.setFont('Helvetica-Bold', 60)
+            canvas.setFillColorRGB(0.9, 0.9, 0.9, alpha=0.1)  # FIXED: Use setFillColorRGB with alpha
             canvas.rotate(45)
             canvas.drawCentredString(doc.width/2, doc.height/3, 
                                    self.system_config['system_name'])
             canvas.restoreState()
+        except Exception as e:
+            logger.warning(f"Watermark error: {e}")
+            # Alternative without alpha
+            try:
+                canvas.saveState()
+                canvas.setFont('Helvetica-Bold', 60)
+                canvas.setFillColor(colors.lightgrey)
+                canvas.rotate(45)
+                canvas.drawCentredString(doc.width/2, doc.height/3, 
+                                       self.system_config['system_name'])
+                canvas.restoreState()
+            except:
+                pass  # Skip watermark if it fails
+    
+    def safe_hex_color(self, hex_code, alpha=1.0):
+        """Safe way to use hex colors with alpha"""
+        try:
+            # Remove # if present
+            hex_code = hex_code.lstrip('#')
+            
+            # Convert to RGB
+            r = int(hex_code[0:2], 16) / 255.0
+            g = int(hex_code[2:4], 16) / 255.0
+            b = int(hex_code[4:6], 16) / 255.0
+            
+            return (r, g, b, alpha)
         except:
-            pass  # Watermark is optional
+            # Default to grey
+            return (0.5, 0.5, 0.5, alpha)
