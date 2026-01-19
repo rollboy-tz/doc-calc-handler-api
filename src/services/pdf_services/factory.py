@@ -1,81 +1,77 @@
 """
-Factory for creating PDF generators with system-specific templates
+Factory for creating PDF generators
 """
 import logging
-from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
 class PDFGeneratorFactory:
-    """Factory to create PDF generator instances for different systems"""
-    
-    GENERATORS = {
-        # System-specific generators
-        'acsee_student_report': {
-            'module': 'student_reports.generator',
-            'class': 'ACSEEReportGenerator'
-        },
-        'csee_student_report': {
-            'module': 'student_reports.generator',
-            'class': 'CSEEReportGenerator'
-        },
-        'plse_student_report': {
-            'module': 'student_reports.generator',
-            'class': 'PLSEReportGenerator'
-        },
-        # Generic fallback
-        'student_report': {
-            'module': 'student_reports.generator',
-            'class': 'GenericReportGenerator'
-        }
-    }
+    """Factory to create PDF generator instances"""
     
     @staticmethod
-    def create(generator_type: str, config: Dict[str, Any] = None):
+    def create(generator_type: str, config: dict = None):
         """
-        Create a PDF generator instance based on system type
+        Create a PDF generator instance
         
         Args:
-            generator_type: Type of generator (acsee_student_report, csee_student_report, plse_student_report)
+            generator_type: Type of generator
+                - 'student_report': Generic (auto-detects system)
+                - 'acsee_student_report': ACSEE specific
+                - 'csee_student_report': CSEE specific  
+                - 'plse_student_report': PLSE specific
             config: Optional configuration dictionary
         
         Returns:
             PDF generator instance
         """
         try:
-            # If generic type, determine specific type from config
-            if generator_type == 'student_report' and config:
-                system_rule = config.get('system_rule', '').lower()
-                if system_rule in ['acsee', 'advanced']:
-                    generator_type = 'acsee_student_report'
-                elif system_rule in ['csee', 'certificate']:
-                    generator_type = 'csee_student_report'
-                elif system_rule in ['plse', 'primary']:
-                    generator_type = 'plse_student_report'
+            config = config or {}
             
-            if generator_type not in PDFGeneratorFactory.GENERATORS:
-                available = ', '.join(PDFGeneratorFactory.GENERATORS.keys())
+            # Map generator types to classes
+            generator_map = {
+                'student_report': 'StudentReportGenerator',
+                'acsee_student_report': 'ACSEEReportGenerator',
+                'csee_student_report': 'CSEEReportGenerator',
+                'plse_student_report': 'PLSEReportGenerator',
+                'generic_report': 'GenericReportGenerator'
+            }
+            
+            if generator_type not in generator_map:
+                available = ', '.join(generator_map.keys())
                 raise ValueError(
                     f"Unknown generator type: {generator_type}. "
                     f"Available: {available}"
                 )
             
-            generator_info = PDFGeneratorFactory.GENERATORS[generator_type]
-            module_name = generator_info['module']
-            class_name = generator_info['class']
+            class_name = generator_map[generator_type]
             
-            # Dynamic import
-            module_path = f"services.pdf_services.{module_name}"
-            module = __import__(module_path, fromlist=[class_name])
-            generator_class = getattr(module, class_name)
+            # Import module and get class
+            from .student_reports.generator import (
+                StudentReportGenerator,
+                ACSEEReportGenerator,
+                CSEEReportGenerator,
+                PLSEReportGenerator,
+                GenericReportGenerator
+            )
+            
+            # Map class names to actual classes
+            class_map = {
+                'StudentReportGenerator': StudentReportGenerator,
+                'ACSEEReportGenerator': ACSEEReportGenerator,
+                'CSEEReportGenerator': CSEEReportGenerator,
+                'PLSEReportGenerator': PLSEReportGenerator,
+                'GenericReportGenerator': GenericReportGenerator
+            }
+            
+            generator_class = class_map[class_name]
             
             # Create instance
-            return generator_class(config or {})
+            return generator_class(config)
             
         except ImportError as e:
             logger.error(f"Import error for {generator_type}: {e}")
             raise ValueError(f"Cannot load generator: {generator_type}")
-        except AttributeError as e:
+        except KeyError as e:
             logger.error(f"Class not found: {e}")
             raise ValueError(f"Generator class not found: {generator_type}")
         except Exception as e:
